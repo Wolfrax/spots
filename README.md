@@ -79,8 +79,8 @@ As the implementation have no access to specifications the following implementat
 as references for spots
 
 * [dump1090 by antirez](https://github.com/antirez/dump1090), the original
-* [dump1090 by Malcolm Robb](https://github.com/MalcolmRobb/dump1090), a fork of antirez original
-* [dump1090 by flighaware](https://github.com/flightaware/dump1090), another forl
+* [dump1090 by Malcolm Robb](https://github.com/MalcolmRobb/dump1090), a fork of antirez
+* [dump1090 by flighaware](https://github.com/flightaware/dump1090), another fork
 * [java adsb at OpenSky](https://github.com/openskynetwork/java-adsb), a java implementation
 * [ADS-B decoding guide](http://adsb-decode-guide.readthedocs.io/en/latest/index.html)
 
