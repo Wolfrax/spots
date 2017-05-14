@@ -1,0 +1,16 @@
+{
+  "verbose logging": true,
+  "check crc": true,
+  "check phase": false,
+  "use metric": true,
+  "apply bit err correction": false,
+  "read from file": false,
+  "file name": "modes1.bin",
+  "use text display": true,
+  "max blip ttl": 60.0,
+  "user latitude": 0.0,
+  "user longitude": 0.0,
+  "log file": "spots.log",
+  "log max bytes": 1048576,
+  "log backup count": 10
+}
