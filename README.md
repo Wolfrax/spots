@@ -4,6 +4,8 @@ An implementation to detect and decode Mode-S messages modulated on 1090MHz.
 The implementation is implemented fully in Python (2.7.9), tested on raspberry pi 2 model B hardware using an 
 RTL-SDR USB dongle.
 
+![preamble](adsb-packet.png)
+
 Focus is on using Python idioms and readability, not optimizations.
 Other implementations in C are likely more efficient.
 
