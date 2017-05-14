@@ -394,8 +394,9 @@ class Squitter(basic.ADSB):
             if self._get_msg_byte(8) & 0x08:
                 vertical_rate = 0 - vertical_rate
             vertical_rate = vertical_rate * 64
-            if self.cfg_use_metric:
-                return self.METER_PER_FOOT * vertical_rate if self.cfg_use_metric else vertical_rate
+            return self.METER_PER_FOOT * vertical_rate if self.cfg_use_metric else vertical_rate
+        else:
+            return 0
 
     def _get_altitude(self):
         ac_12 = ((self._get_msg_byte(5) << 4) | (self._get_msg_byte(6) >> 4)) & 0x0FFF
