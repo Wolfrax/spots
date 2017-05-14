@@ -1,4 +1,4 @@
-# spots
+# spots - dump1090 in Python
 
 An implementation to detect and decode Mode-S messages modulated on 1090MHz.
 The implementation is implemented fully in Python, tested on raspberry pi 2 model B hardware using an 
@@ -31,7 +31,7 @@ or in a tabular format depending on preference.
 
 Some statistics is collected
 
-## Dependecies
+## Dependencies
 
 Spots uses [pyrtlsdr](https://github.com/roger-/pyrtlsdr) to read samples. Use the installation description to install
 this.
