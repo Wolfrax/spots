@@ -1,5 +1,8 @@
 import threading
 import json
+import time
+
+__author__ = 'Wolfrax'
 
 """
 basic implement fundamentals of spots, the class ADSB includes constants, pre-defined tables and configuration
@@ -35,7 +38,7 @@ class ADSB:
     This class defines fundamental constants and is not supposed to be instantiated
     """
 
-    VERSION = "1.0"
+    VERSION = "2.0"
 
     # basic constants
     MODES_SIGMIN = 0
@@ -67,39 +70,39 @@ class ADSB:
     KPH_PER_KNOT = 1.852
 
     # Downlink formats
-    DF_SHORT_AIR2AIR_SURVEILLANCE_0 = 0
-    DF_UNKNOWN_1 = 1
-    DF_UNKNOWN_2 = 2
-    DF_UNKNOWN_3 = 3
-    DF_SURVEILLANCE_ALTITUDE_REPLY_4 = 4
-    DF_SURVEILLANCE_IDENTITY_REPLY_5 = 5
-    DF_UNKNOWN_6 = 6
-    DF_UNKNOWN_7 = 7
-    DF_UNKNOWN_8 = 8
-    DF_UNKNOWN_9 = 9
-    DF_UNKNOWN_10 = 10
-    DF_ALL_CALL_REPLY_11 = 11
-    DF_UNKNOWN_12 = 12
-    DF_UNKNOWN_13 = 13
-    DF_UNKNOWN_14 = 14
-    DF_UNKNOWN_15 = 15
-    DF_LONG_AIR2AIR_SURVEILLANCE_16 = 16
-    DF_ADSB_MSG_17 = 17
-    DF_EXTENDED_SQUITTER_18 = 18
-    DF_MILITARY_EXTENDED_SQUITTER_19 = 19
-    DF_COMM_BDS_ALTITUDE_REPLY_20 = 20
-    DF_COMM_BDS_IDENTITY_REPLY_21 = 21
-    DF_MILITARY_USE_22 = 22
-    DF_UNKNOWN_23 = 23
-    DF_COMM_D_EXTENDED_LENGTH_MESSAGE_24 = 24
-    DF_UNKNOWN_25 = 25
-    DF_UNKNOWN_26 = 26
-    DF_UNKNOWN_27 = 27
-    DF_UNKNOWN_28 = 28
-    DF_UNKNOWN_29 = 29
-    DF_UNKNOWN_30 = 30
-    DF_UNKNOWN_31 = 31
-    DF_SSR_MODE_AC_REPLY_32 = 32
+    DF_SHORT_AIR2AIR_SURVEILLANCE_0 = "0"
+    DF_UNKNOWN_1 = "1"
+    DF_UNKNOWN_2 = "2"
+    DF_UNKNOWN_3 = "3"
+    DF_SURVEILLANCE_ALTITUDE_REPLY_4 = "4"
+    DF_SURVEILLANCE_IDENTITY_REPLY_5 = "5"
+    DF_UNKNOWN_6 = "6"
+    DF_UNKNOWN_7 = "7"
+    DF_UNKNOWN_8 = "8"
+    DF_UNKNOWN_9 = "9"
+    DF_UNKNOWN_10 = "10"
+    DF_ALL_CALL_REPLY_11 = "11"
+    DF_UNKNOWN_12 = "12"
+    DF_UNKNOWN_13 = "13"
+    DF_UNKNOWN_14 = "14"
+    DF_UNKNOWN_15 = "15"
+    DF_LONG_AIR2AIR_SURVEILLANCE_16 = "16"
+    DF_ADSB_MSG_17 = "17"
+    DF_EXTENDED_SQUITTER_18 = "18"
+    DF_MILITARY_EXTENDED_SQUITTER_19 = "19"
+    DF_COMM_BDS_ALTITUDE_REPLY_20 = "20"
+    DF_COMM_BDS_IDENTITY_REPLY_21 = "21"
+    DF_MILITARY_USE_22 = "22"
+    DF_UNKNOWN_23 = "23"
+    DF_COMM_D_EXTENDED_LENGTH_MESSAGE_24 = "24"
+    DF_UNKNOWN_25 = "25"
+    DF_UNKNOWN_26 = "26"
+    DF_UNKNOWN_27 = "27"
+    DF_UNKNOWN_28 = "28"
+    DF_UNKNOWN_29 = "29"
+    DF_UNKNOWN_30 = "30"
+    DF_UNKNOWN_31 = "31"
+    DF_SSR_MODE_AC_REPLY_32 = "32"
 
     # Type codes
     TC_NO_INFO_0 = 0
@@ -170,6 +173,7 @@ class ADSB:
     cfg_check_phase = config["check phase"]
     cfg_use_metric = config["use metric"]
     cfg_apply_bit_err_correction = config["apply bit err correction"]
+    cfg_run_as_daemon = config["run as daemon"]
     cfg_read_from_file = config["read from file"]
     cfg_file_name = config["file name"]
     cfg_use_text_display = config["use text display"]
@@ -181,6 +185,8 @@ class ADSB:
     cfg_log_file = config["log file"]
     cfg_log_max_bytes = config["log max bytes"]
     cfg_log_backup_count = config["log backup count"]
+    cfg_server_address = config["spots server address"]
+    cfg_server_port = config["spots server port"]
 
     def __init__(self):
         pass
@@ -561,6 +567,7 @@ class RepeatTimer(threading.Thread):
         self.interval = interval
         self.function = func
         self.finished = threading.Event()
+        self.daemon = True
 
     def run(self):
         while not self.finished.is_set():
@@ -576,35 +583,52 @@ class Stats:
     """
     Class for collecting some statistics on messages
     """
-    valid_preambles = 0
-    valid_crc = 0
-    not_valid_crc = 0
-    df_0 = 0
-    df_4 = 0
-    df_5 = 0
-    df_16 = 0
-    df_17 = 0
-    df_18 = 0
-    df_20 = 0
-    df_21 = 0
+    data = {'spots_version': "",
+            'start_time': 0,
+            'start_time_string': "",
+            'valid_preambles': 0,
+            'valid_crc': 0,
+            'not_valid_crc': 0,
+            'df_0': 0,
+            'df_4': 0,
+            'df_5': 0,
+            'df_11': 0,
+            'df_16': 0,
+            'df_17': 0,
+            'df_18': 0,
+            'df_20': 0,
+            'df_21': 0,
+            'df_total': 0
+            }
 
     def __init__(self):
+        self['spots_version'] = ADSB.VERSION
+        self['start_time'] = time.time()
+        self['start_time_string'] = time.ctime(self['start_time'])
         pass
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+    def __getitem__(self, item):
+        return self.data[item]
 
     def __str__(self):
         st = "\n"
-        st += "Preambles:{}\n".format(self.valid_preambles)
-        st += "Valid CRC:{}\n".format(self.valid_crc)
-        st += "Non valid CRC:{}\n".format(self.not_valid_crc)
+        st += "Preambles:{}\n".format(self['valid_preambles'])
+        st += "Valid CRC:{}\n".format(self['valid_crc'])
+        st += "Non valid CRC:{}\n".format(self['not_valid_crc'])
         st += "Decoded messages: "
-        st += "DF0: {} ".format(self.df_0)
-        st += "DF4: {} ".format(self.df_4)
-        st += "DF5: {} ".format(self.df_5)
-        st += "DF16: {} ".format(self.df_16)
-        st += "DF17: {} ".format(self.df_17)
-        st += "DF18: {} ".format(self.df_18)
-        st += "DF20: {} ".format(self.df_20)
-        st += "DF21: {} ".format(self.df_21)
+        st += "DF0: {} ".format(self['df_0'])
+        st += "DF4: {} ".format(self['df_4'])
+        st += "DF5: {} ".format(self['df_5'])
+        st += "DF11: {} ".format(self['df_11'])
+        st += "DF16: {} ".format(self['df_16'])
+        st += "DF17: {} ".format(self['df_17'])
+        st += "DF18: {} ".format(self['df_18'])
+        st += "DF20: {} ".format(self['df_20'])
+        st += "DF21: {} ".format(self['df_21'])
+        st += "DF Total: {} ".format(self['df_total'])
 
         return st
 

@@ -1,5 +1,8 @@
 import basic
 import math
+import logging
+
+__author__ = 'Wolfrax'
 
 """
 Implements the Squitter class which represents decoded messages.
@@ -180,167 +183,203 @@ def CPR_NL(lat):
         return basic.ADSB.NL.index(max(filter(lambda x: x < lat, basic.ADSB.NL))) + 1
 
 
-def is_CPR(msg):
-    return msg.is_CPR_msg
-
-
-def is_odd_CPR(msg):
-    return msg.odd
-
-
-def decodeCPR(odd_msg, even_msg):
-    # Basic algorithm: http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
-    air_dlat_0 = 360 / 60.0
-    air_dlat_1 = 360 / 59.0
-    lat0 = even_msg.raw_latitude
-    lat1 = odd_msg.raw_latitude
-    lon0 = even_msg.raw_longitude
-    lon1 = odd_msg.raw_longitude
-
-    j = int(math.floor(((59 * lat0 - 60 * lat1) / 131072.0) + 0.5))
-
-    rlat0 = air_dlat_0 * (j % 60 + lat0 / 131072.0)
-    rlat1 = air_dlat_1 * (j % 59 + lat1 / 131072.0)
-
-    # Adjust if we are on southern hemisphere by substracting 360 from latitude
-    if rlat0 >= 270:
-        rlat0 -= 360
-    if rlat1 >= 270:
-        rlat1 -= 360
-
-    if rlat0 < -90 or rlat0 > 90 or rlat1 < -90 or rlat1 > 90:
-        return None
-    if CPR_NL(rlat0) != CPR_NL(rlat1):
-        return None
-
-    ni = max(CPR_NL(rlat1) - 1, 1)
-    m = int(math.floor((((lon0 * (CPR_NL(rlat1) - 1)) - (lon1 * CPR_NL(rlat1))) / 131072.0) + 0.5))
-    longitude = (360.0 / ni) * ((m % ni) + lon1 / 131072.0)
-    latitude = rlat1
-
-    if longitude > 180:
-        longitude -= 360
-
-    return {'latitude': latitude, 'longitude': longitude}
-
-
-def decodeCPR_relative(odd_msg, even_msg):
-    air_dlat_1 = 360 / 59.0
-
-    if odd_msg.latitude != 0:
-        latr = odd_msg.latitude
-    elif even_msg.latitude != 0:
-        latr = even_msg.latitude
-    else:
-        latr = odd_msg.cfg_latitude
-
-    if odd_msg.longitude != 0:
-        longr = odd_msg.longitude
-    elif even_msg.latitude != 0:
-        longr = even_msg.longitude
-    else:
-        longr = odd_msg.longitude
-
-    tmp1 = math.floor(latr / air_dlat_1)
-    tmp2 = (int(latr) % int(air_dlat_1))
-    j = int(tmp1 + math.trunc(0.5 + tmp2 / air_dlat_1 - odd_msg.raw_latitude / 131072.0))
-    rlat = air_dlat_1 * (j + odd_msg.raw_latitude / 131072.0)
-    if rlat >= 270:
-        rlat -= 360
-
-    if rlat < -90 or rlat > 90:
-        return None
-
-    if abs(rlat - latr) > (air_dlat_1 / 2):
-        return None
-
-    air_dlon = 360 / max(CPR_NL(rlat) - 1, 1)
-    m = int(math.floor(longr / air_dlon)
-            + math.trunc(0.5 + (int(longr) % int(air_dlon)) / air_dlon - odd_msg.raw_longitude / 131072.0))
-    rlon = air_dlon * (m + odd_msg.raw_longitude / 131072.0)
-    if rlon > 180:
-        rlon -= 360
-
-    return {'latitude': rlat, 'longitude': rlon}
-
-
 class Squitter(basic.ADSB):
     def __init__(self):
         basic.ADSB.__init__(self)
 
+        self.data = {'signal_strength': "",
+                     'downlink_format': "",
+                     'ICAO24': "",
+                     'squawk': "",
+                     'altitude': "",
+                     'call_sign': "",
+                     'velocity': "",
+                     'heading': "",
+                     'latitude': "",
+                     'longitude': ""}
+
         # This is the Squitter object definition and initialization
-        self.signal_strength = 0
         self.msg = 0
         self.no_of_bits = 0
-        self.downlink_format = 0
         self.capability = 0
-        self.ICAO24 = 0
         self.type_code = 0
         self.emitter_category = 0
         self.parity = 0
         self.crc_sum = "0"
         self.crc_ok = False
-        self.Squawk = 0
-        self.altitude = 0
-        self.call_sign = ""
         self.vertical_rate = 0
         self.ew_velocity = 0
         self.ns_velocity = 0
-        self.velocity = 0
-        self.heading = 0
         self.flight_status = 0
-        self.latitude = 0
-        self.longitude = 0
-        self.raw_latitude = 0
-        self.raw_longitude = 0
+        self.odd_raw_latitude = 0
+        self.odd_raw_longitude = 0
+        self.even_raw_latitude = 0
+        self.even_raw_longitude = 0
+        self.odd_pos = False
+        self.even_pos = False
         self.on_ground = False
-        self.odd = False
-        self.is_CPR_msg = False
+
+        self.logger = logging.getLogger('spots.squitter')
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
+
+    def __getitem__(self, item):
+        return self.data[item]
+
+    def __iter__(self):
+        for key in self.data:
+            yield key
 
     def __str__(self):
         st = ""
         st += "* {}\n".format(hex(self.msg)[2:-1])
         st += "{} ".format(hex(self.parity)[2:-1])
         st += "CRC: {} ({}) ".format(self.crc_sum, "ok" if self.crc_ok else "not ok")
-        st += "ICAO: {} ".format(self.ICAO24)
-        st += "DF - {} ".format(self.squitter["downlink format"][self.downlink_format])
-        st += "TC - {} ".format(self.squitter["type code"][self.type_code])
+        st += "ICAO: {} ".format(self['ICAO24'])
+        st += "DF - {} ".format(self.squitter['downlink_format'][int(self['downlink_format'])])
+        st += "TC - {} ".format(self.squitter['type_code'][self.type_code])
 
-        if self.altitude > 0:
-            st += "{}ft ".format(self.altitude)
-        if self.call_sign != "":
-            st += "{} ".format(self.call_sign)
-        if self.Squawk != 0:
-            st += "Squawk: {:=04X} ".format(self.Squawk)
-        if self.longitude != 0:
-            st += "long: {0:.3f} ".format(self.longitude)
-        if self.latitude != 0:
-            st += "lat: {0:.3f} ".format(self.latitude)
+        if self['altitude'] != "":
+            st += "{}{} ".format(self['altitude'], "m" if self.cfg_use_metric else "ft")
+        if self['call_sign'] != "":
+            st += "{} ".format(self['call_sign'])
+        if self['squawk'] != "":
+            st += "squawk: {} ".format(self['squawk'])
+        if self['longitude'] != "":
+            st += "long: {} ".format(self['longitude'])
+        if self['latitude'] != "":
+            st += "lat: {} ".format(self['latitude'])
         if self.vertical_rate != 0:
             st += "vrate: {} ".format(self.vertical_rate)
-        if self.velocity != 0:
-            st += "vel: {} ".format(self.velocity)
-        if self.heading != 0:
-            st += "head: {} ".format(self.heading)
+        if self['velocity'] != "":
+            st += "vel: {} ".format(self['velocity'])
+        if self['heading'] != "":
+            st += "head: {} ".format(self['heading'])
         if self.flight_status != 0:
-            st += "fs: {} {} ".format(self.flight_status, self.squitter["flight status"][self.flight_status])
-        if self.signal_strength != 0:
-            st += "sig: {}% ".format(self.signal_strength)
+            st += "fs: {} {} ".format(self.flight_status, self.squitter["flight_status"][self.flight_status])
+        if self['signal_strength'] != "":
+            st += "sig: {}% ".format(self['signal_strength'])
 
         return st
 
-    def is_odd_CPR(self):
-        return self.odd
+    def update(self, msg):
+        self.data['signal_strength'] = msg['signal_strength']
+        self.data['downlink_format'] = msg['downlink_format']
 
-    def is_CPR(self):
-        return self.is_CPR_msg
+        self.data['squawk'] = msg['squawk'] if msg['squawk'] != "" else self.data['squawk']
+        self.data['altitude'] = msg['altitude'] if msg['altitude'] != "" else self.data['altitude']
+        self.data['call_sign'] = msg['call_sign'] if msg['call_sign'] != "" else self.data['call_sign']
+        self.data['velocity'] = msg['velocity'] if msg['velocity'] != "" else self.data['velocity']
+        self.data['heading'] = msg['heading'] if msg['heading'] != "" else self.data['heading']
+        self.data['latitude'] = msg['latitude'] if msg['latitude'] != "" else self.data['latitude']
+        self.data['longitude'] = msg['longitude'] if msg['longitude'] != "" else self.data['longitude']
 
-    def add_lat_long(self, latitude, longitude):
-        self.latitude = latitude
-        self.longitude = longitude
+        self.odd_raw_latitude = msg.odd_raw_latitude if msg.odd_raw_latitude != 0 else self.odd_raw_latitude
+        self.odd_raw_longitude = msg.odd_raw_longitude if msg.odd_raw_longitude != 0 else self.odd_raw_longitude
+
+        self.even_raw_latitude = msg.even_raw_latitude if msg.even_raw_latitude != 0 else self.even_raw_latitude
+        self.even_raw_longitude = msg.even_raw_longitude if msg.even_raw_longitude != 0 else self.even_raw_longitude
+
+        self.odd_pos = msg.odd_pos if msg.odd_pos else self.odd_pos
+        self.even_pos = msg.even_pos if msg.even_pos else self.even_pos
+
+    def get_downlink_format(self):
+        return self['downlink_format']
 
     def _get_msg_byte(self, byte_nr):
         return (self.msg >> (self.no_of_bits - (byte_nr + 1) * 8)) & 0xFF
+
+    def decodeCPR(self):
+        # Basic algorithm: http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
+
+        if self.odd_pos is False or self.even_pos is False:
+            return False
+
+        air_dlat_0 = 360 / 60.0
+        air_dlat_1 = 360 / 59.0
+        lat0 = self.even_raw_latitude
+        lat1 = self.odd_raw_latitude
+        lon0 = self.even_raw_longitude
+        lon1 = self.odd_raw_longitude
+
+        j = int(math.floor(((59 * lat0 - 60 * lat1) / 131072.0) + 0.5))
+
+        rlat0 = air_dlat_0 * (j % 60 + lat0 / 131072.0)
+        rlat1 = air_dlat_1 * (j % 59 + lat1 / 131072.0)
+
+        # Adjust if we are on southern hemisphere by substracting 360 from latitude
+        if rlat0 >= 270:
+            rlat0 -= 360
+        if rlat1 >= 270:
+            rlat1 -= 360
+
+        if rlat0 < -90 or rlat0 > 90 or rlat1 < -90 or rlat1 > 90:
+            return False
+        if CPR_NL(rlat0) != CPR_NL(rlat1):
+            return False
+
+        ni = max(CPR_NL(rlat1) - 1, 1)
+        m = int(math.floor((((lon0 * (CPR_NL(rlat1) - 1)) - (lon1 * CPR_NL(rlat1))) / 131072.0) + 0.5))
+        longitude = (360.0 / ni) * ((m % ni) + lon1 / 131072.0)
+        latitude = rlat1
+
+        if longitude > 180:
+            longitude -= 360
+
+        self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
+        self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
+        self.even_pos = False
+        self.odd_pos = False
+
+        return True
+
+    def decodeCPR_relative(self):
+        if self.odd_pos is False or self.even_pos is False:
+            return False
+
+        air_dlat_1 = 360 / 59.0
+
+        if self.odd_raw_latitude != 0:
+            latr = self.odd_raw_latitude
+        elif self.even_raw_latitude != 0:
+            latr = self.even_raw_latitude
+        else:
+            latr = self.cfg_latitude
+
+        if self.odd_raw_longitude != 0:
+            longr = self.odd_raw_longitude
+        elif self.even_raw_longitude != 0:
+            longr = self.even_raw_longitude
+        else:
+            longr = self.cfg_longitude
+
+        tmp1 = math.floor(latr / air_dlat_1)
+        tmp2 = (int(latr) % int(air_dlat_1))
+        j = int(tmp1 + math.trunc(0.5 + tmp2 / air_dlat_1 - self.odd_raw_latitude / 131072.0))
+        rlat = air_dlat_1 * (j + self.odd_raw_latitude / 131072.0)
+        if rlat >= 270:
+            rlat -= 360
+
+        if rlat < -90 or rlat > 90:
+            return
+
+        if abs(rlat - latr) > (air_dlat_1 / 2):
+            return
+
+        air_dlon = 360 / max(CPR_NL(rlat) - 1, 1)
+        m = int(math.floor(longr / air_dlon)
+                + math.trunc(0.5 + (int(longr) % int(air_dlon)) / air_dlon - self.odd_raw_longitude / 131072.0))
+        rlon = air_dlon * (m + self.odd_raw_longitude / 131072.0)
+        if rlon > 180:
+            rlon -= 360
+
+        self.data['latitude'] = str(round(rlat, 3)) if rlat != 0.0 else ""
+        self.data['longitude'] = str(round(rlon, 3)) if rlon != 0.0 else ""
+        self.even_pos = False
+        self.odd_pos = False
+
+        return
 
     def parse(self, obj):
         """
@@ -348,14 +387,14 @@ class Squitter(basic.ADSB):
         """
 
         # The object consists of 2 parts: [signal_strength, msg]
-        self.signal_strength = obj[0]
+        self['signal_strength'] = str(obj[0])
         msg = obj[1]
 
         # Top 5 bits is DF
-        self.downlink_format = (int(hex(msg)[2:4], base=16) & 0xF8) >> 3
+        self['downlink_format'] = str((int(hex(msg)[2:4], base=16) & 0xF8) >> 3)
 
         # Most significant bit indicates length
-        if self.downlink_format & 0x10:
+        if int(self['downlink_format']) & 0x10:
             self.msg = msg
             self.no_of_bits = self.MODES_LONG_MSG_BITS
         else:
@@ -369,12 +408,12 @@ class Squitter(basic.ADSB):
             self.crc_sum = self.crc(hex(self.msg))  # crc_sum is computed on a hexidecimal string
             self.crc_ok = basic.ADSB.crc_2_int(self.crc_sum) == 0
             if self.crc_ok:
-                basic.statistics.valid_crc += 1
+                basic.statistics['valid_crc'] += 1
             else:
-                basic.statistics.not_valid_crc += 1
+                basic.statistics['not_valid_crc'] += 1
         else:
             # Skip crc check, discouraged
-            self.crc_sum = 0
+            self.crc_sum = "0"
             self.crc_ok = True
 
         if not self.crc_ok and self.cfg_apply_bit_err_correction:  # Apply bit error correction
@@ -383,9 +422,9 @@ class Squitter(basic.ADSB):
                 self.crc_ok = True
                 self.msg = corrected_msg
                 if self.crc_ok:
-                    basic.statistics.valid_crc += 1
+                    basic.statistics['valid_crc'] += 1
                 else:
-                    basic.statistics.not_valid_crc += 1
+                    basic.statistics['not_valid_crc'] += 1
 
     def _get_vertical_rate(self):
         vertical_rate = ((self._get_msg_byte(8) & 0x07) << 6) | (self._get_msg_byte(9) >> 2)
@@ -394,7 +433,7 @@ class Squitter(basic.ADSB):
             if self._get_msg_byte(8) & 0x08:
                 vertical_rate = 0 - vertical_rate
             vertical_rate = vertical_rate * 64
-            return self.METER_PER_FOOT * vertical_rate if self.cfg_use_metric else vertical_rate
+            return int(round(self.METER_PER_FOOT * vertical_rate)) if self.cfg_use_metric else vertical_rate
         else:
             return 0
 
@@ -402,7 +441,7 @@ class Squitter(basic.ADSB):
         ac_12 = ((self._get_msg_byte(5) << 4) | (self._get_msg_byte(6) >> 4)) & 0x0FFF
         if ac_12 != 0:
             altitude = parse_ac12(ac_12)
-            return self.METER_PER_FOOT * altitude if self.cfg_use_metric else altitude
+            return int(round(self.METER_PER_FOOT * altitude)) if self.cfg_use_metric else altitude
         else:
             return 0
 
@@ -410,7 +449,7 @@ class Squitter(basic.ADSB):
         movement = ((self._get_msg_byte(4) << 4) | (self._get_msg_byte(5) >> 4)) & 0x007F
         if 0 < movement < 125:
             velocity = parse_movement(movement)
-            return self.KPH_PER_KNOT * velocity if self.cfg_use_metric else velocity
+            return int(round(self.KPH_PER_KNOT * velocity)) if self.cfg_use_metric else velocity
         else:
             return 0
 
@@ -431,7 +470,7 @@ class Squitter(basic.ADSB):
             sub_type = self._get_msg_byte(4) & 0x07
 
         if self.TC_ID_CAT_D_1 <= self.type_code <= self.TC_ID_CAT_A_4:
-            self.call_sign = callsign(hex(self.msg)[2:-1])
+            self['call_sign'] = callsign(hex(self.msg)[2:-1])
         elif self.type_code == self.TC_AIRBORNE_VELOCITY_19:
             if 1 <= sub_type <= 4:
                 self.vertical_rate = self._get_vertical_rate()
@@ -456,56 +495,65 @@ class Squitter(basic.ADSB):
                     self.ns_velocity = ns_velocity
 
                 if east_west_raw != 0 and north_south_raw != 0:
-                    self.velocity = int(round(math.sqrt((ns_velocity ** 2) + (ew_velocity ** 2))))
+                    velocity = math.sqrt((ns_velocity ** 2) + (ew_velocity ** 2))
                     if self.cfg_use_metric:
-                        self.velocity = self.KPH_PER_KNOT * self.velocity
-                    if self.velocity != 0:
-                        self.heading = int(round(math.atan2(ew_velocity, ns_velocity) * 180 / math.pi))
-                        if self.heading < 0:
-                            self.heading += 360
+                        self['velocity'] = str(int(round(self.KPH_PER_KNOT * velocity)))
+                    else:
+                        self['velocity'] = str(int(round(velocity)))
+                    if velocity != 0:
+                        heading = math.atan2(ew_velocity, ns_velocity) * 180 / math.pi
+                        if heading < 0:
+                            heading += 360
+                        self['heading'] = str(int(round(heading)))
             if 3 <= sub_type <= 4:
                 airspeed = ((self._get_msg_byte(7) & 0x7f) << 3) | (self._get_msg_byte(8) >> 5)
                 if airspeed != 0:
                     airspeed -= 1
                     if sub_type == 4:  # supersonic
                         airspeed = airspeed << 2
-                    self.velocity = airspeed
+                    self['velocity'] = str(airspeed)
                 if self._get_msg_byte(5) & 0x04:
-                    self.heading = ((((self._get_msg_byte(5) & 0x03) << 8) | self._get_msg_byte(6)) * 45) >> 7
+                    self['heading'] = str(((((self._get_msg_byte(5) & 0x03) << 8) | self._get_msg_byte(6)) * 45) >> 7)
 
         elif self.TC_SURFACE_POS_5 <= self.type_code <= self.TC_AIRBORNE_POS_22:
-            self.is_CPR_msg = True
-            self.odd = True if self._get_msg_byte(6) & 0x04 else False
+            odd = True if (self._get_msg_byte(6) & 0x04) else False
 
-            self.raw_latitude = ((self._get_msg_byte(6) & 0x03) << 15) \
-                                | (self._get_msg_byte(7) << 7) \
-                                | (self._get_msg_byte(8) >> 1)
-            self.raw_longitude = ((self._get_msg_byte(8) & 0x01) << 16) \
-                                 | (self._get_msg_byte(9) << 8) \
-                                 | (self._get_msg_byte(10))
+            if odd:
+                self.odd_pos = True
+            else:
+                self.even_pos = True
+
+            lat = ((self._get_msg_byte(6) & 0x03) << 15) | (self._get_msg_byte(7) << 7) | (self._get_msg_byte(8) >> 1)
+            lon = ((self._get_msg_byte(8) & 0x01) << 16) | (self._get_msg_byte(9) << 8) | (self._get_msg_byte(10))
+            if odd:
+                self.odd_raw_latitude = lat
+                self.odd_raw_longitude = lon
+            else:
+                self.even_raw_latitude = lat
+                self.even_raw_longitude = lon
 
             if self.TC_AIRBORNE_POS_9 <= self.type_code <= self.TC_AIRBORNE_POS_18:
-                self.altitude = self._get_altitude()
+                self['altitude'] = str(self._get_altitude())
                 self.on_ground = False
             elif self.TC_AIRBORNE_POS_20 <= self.type_code <= self.TC_AIRBORNE_POS_22:
-                self.altitude = self._get_altitude()
+                self['altitude'] = str(self._get_altitude())
                 self.on_ground = False
             elif self.TC_SURFACE_POS_5 <= self.type_code <= self.TC_SURFACE_POS_8:
-                self.velocity = self._get_velocity()
-                self.heading = self._get_heading()
+                self['velocity'] = str(self._get_velocity())
+                self['heading'] = str(self._get_heading())
                 self.on_ground = True
 
         elif self.type_code == self.TC_RESERVED_TEST_23:
             if sub_type == 7:
                 id_13 = (((self._get_msg_byte(5) << 8) | self._get_msg_byte(6)) & 0xFFF1) >> 3
                 if id_13 != 0:
-                    self.Squawk = parse_id13(id_13)
+                    self['squawk'] = str("{:=04X}".format(parse_id13(id_13)))
 
         elif self.type_code == self.TC_EXT_SQ_AIRCRFT_STATUS_28:
             if sub_type == 1:
                 id_13 = ((self._get_msg_byte(5) << 8) | self._get_msg_byte(6)) & 0x1FFF
                 if id_13 != 0:
-                    self.Squawk = parse_id13(id_13)
+                    self['squawk'] = str("{:=04X}".format(parse_id13(id_13)))
 
     def decode_extended_squitter_msg(self):
         if self.capability == 0 or self.capability == 1 or self.capability == 6:
@@ -513,73 +561,82 @@ class Squitter(basic.ADSB):
 
     def decode_comm_bds_reply_msg(self):
         if self._get_msg_byte(4) == 0x20:
-            self.call_sign = callsign(hex(self.msg)[2:-1])
+            self['call_sign'] = callsign(hex(self.msg)[2:-1])
 
     def decode_altitude_msg(self):
         ac_13 = ((self._get_msg_byte(2) << 8) | self._get_msg_byte(3)) & 0x1FFF
         if ac_13 != 0:
             altitude = parse_ac13(ac_13)
-            self.altitude = self.METER_PER_FOOT * altitude if self.cfg_use_metric else altitude
+            self['altitude'] = str(int(round(self.METER_PER_FOOT * altitude))) if self.cfg_use_metric else str(altitude)
 
     def decode_identity_msg(self):
         if self.TC_ID_CAT_D_1 <= self.type_code <= self.TC_ID_CAT_A_4:
-            self.Squawk = self._get_identity()
+            self['squawk'] = str("{:=04X}".format(self._get_identity()))
 
     def decode_comm_bds_identity_msg(self):
-        self.Squawk = self._get_identity()
+        self['squawk'] = str("{:=04X}".format(self._get_identity()))
 
     def decode_flight_status_msg(self):
         self.flight_status = self._get_msg_byte(0) & 0x07
 
+    def decode_all_reply_msg(self):
+        pass  # Nothing to decode
+
     def _update_statistics(self):
-        if self.downlink_format == self.DF_SHORT_AIR2AIR_SURVEILLANCE_0:
-            basic.statistics.df_0 += 1
-        elif self.downlink_format == self.DF_SURVEILLANCE_ALTITUDE_REPLY_4:
-            basic.statistics.df_4 += 1
-        elif self.downlink_format == self.DF_SURVEILLANCE_IDENTITY_REPLY_5:
-            basic.statistics.df_5 += 1
-        elif self.downlink_format == self.DF_LONG_AIR2AIR_SURVEILLANCE_16:
-            basic.statistics.df_16 += 1
-        elif self.downlink_format == self.DF_ADSB_MSG_17:
-            basic.statistics.df_17 += 1
-        elif self.downlink_format == self.DF_EXTENDED_SQUITTER_18:
-            basic.statistics.df_18 += 1
-        elif self.downlink_format == self.DF_COMM_BDS_ALTITUDE_REPLY_20:
-            basic.statistics.df_20 += 1
-        elif self.downlink_format == self.DF_COMM_BDS_IDENTITY_REPLY_21:
-            basic.statistics.df_21 += 1
+        if self['downlink_format'] == self.DF_SHORT_AIR2AIR_SURVEILLANCE_0:
+            basic.statistics['df_0'] += 1
+        elif self['downlink_format'] == self.DF_SURVEILLANCE_ALTITUDE_REPLY_4:
+            basic.statistics['df_4'] += 1
+        elif self['downlink_format'] == self.DF_SURVEILLANCE_IDENTITY_REPLY_5:
+            basic.statistics['df_5'] += 1
+        elif self['downlink_format'] == self.DF_ALL_CALL_REPLY_11:
+            basic.statistics['df_11'] += 1
+        elif self['downlink_format'] == self.DF_LONG_AIR2AIR_SURVEILLANCE_16:
+            basic.statistics['df_16'] += 1
+        elif self['downlink_format'] == self.DF_ADSB_MSG_17:
+            basic.statistics['df_17'] += 1
+        elif self['downlink_format'] == self.DF_EXTENDED_SQUITTER_18:
+            basic.statistics['df_18'] += 1
+        elif self['downlink_format'] == self.DF_COMM_BDS_ALTITUDE_REPLY_20:
+            basic.statistics['df_20'] += 1
+        elif self['downlink_format'] == self.DF_COMM_BDS_IDENTITY_REPLY_21:
+            basic.statistics['df_21'] += 1
+        basic.statistics['df_total'] += 1
 
     def decode(self):
-        if self.ICAO24 == 0:  # if ICAO24 is already set we do not re-compute it here, see run in Radar
-            self.ICAO24 = hex(((self._get_msg_byte(1) << 16)
-                               | (self._get_msg_byte(2) << 8)
-                               | self._get_msg_byte(3)))[2:].rstrip('L')
+        if self['ICAO24'] == "":  # if ICAO24 is already set we do not re-compute it here, see run in Radar
+            self['ICAO24'] = hex(((self._get_msg_byte(1) << 16)
+                                  | (self._get_msg_byte(2) << 8)
+                                  | self._get_msg_byte(3)))[2:].rstrip('L')
         self.capability = self._get_msg_byte(0) & 0x07
         self.type_code = self._get_msg_byte(4) >> 3
         self.emitter_category = self._get_msg_byte(4) & 0x07
         self.parity = self.msg & 0xFFFFFF
-
-        if self.downlink_format == self.DF_SHORT_AIR2AIR_SURVEILLANCE_0:
+        if self['downlink_format'] == self.DF_SHORT_AIR2AIR_SURVEILLANCE_0:
             self.decode_altitude_msg()
-        elif self.downlink_format == self.DF_SURVEILLANCE_ALTITUDE_REPLY_4:
+        elif self['downlink_format'] == self.DF_SURVEILLANCE_ALTITUDE_REPLY_4:
             self.decode_altitude_msg()
             self.decode_flight_status_msg()
-        elif self.downlink_format == self.DF_SURVEILLANCE_IDENTITY_REPLY_5:
+        elif self['downlink_format'] == self.DF_SURVEILLANCE_IDENTITY_REPLY_5:
             self.decode_identity_msg()
             self.decode_flight_status_msg()
-        elif self.downlink_format == self.DF_LONG_AIR2AIR_SURVEILLANCE_16:
+        elif self['downlink_format'] == self.DF_ALL_CALL_REPLY_11:
+            self.decode_all_reply_msg()
+        elif self['downlink_format'] == self.DF_LONG_AIR2AIR_SURVEILLANCE_16:
             self.decode_altitude_msg()
-        elif self.downlink_format == self.DF_ADSB_MSG_17:
+        elif self['downlink_format'] == self.DF_ADSB_MSG_17:
             self.decode_ADSB_msg()
-        elif self.downlink_format == self.DF_EXTENDED_SQUITTER_18:
+        elif self['downlink_format'] == self.DF_EXTENDED_SQUITTER_18:
             self.decode_extended_squitter_msg()
-        elif self.downlink_format == self.DF_COMM_BDS_ALTITUDE_REPLY_20:
+        elif self['downlink_format'] == self.DF_COMM_BDS_ALTITUDE_REPLY_20:
             self.decode_comm_bds_reply_msg()
             self.decode_altitude_msg()
             self.decode_flight_status_msg()
-        elif self.downlink_format == self.DF_COMM_BDS_IDENTITY_REPLY_21:
+        elif self['downlink_format'] == self.DF_COMM_BDS_IDENTITY_REPLY_21:
             self.decode_comm_bds_reply_msg()
             self.decode_comm_bds_identity_msg()
             self.decode_flight_status_msg()
+        else:
+            self.logger.info("decode, unknown downlink format: {}".format(self['downlink_format']))
 
         self._update_statistics()

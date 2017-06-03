@@ -29,9 +29,10 @@ The following message will be decoded:
 * Comm BDS identity reply (Downlink format: 21)
 
 Messages decoded are displayed either in a serialised format on standard output
-or in a tabular format depending on preference.
+or in a tabular format depending on preference. An inbuilt server is listening on port 5051 (configurable) and
+enables a client to access decoded messages in json format.
 
-Some statistics is collected.
+Some statistics is collected, this data is also accessible through the server
 
 ## Dependencies
 
@@ -98,6 +99,7 @@ Configuration for spots is in `spots_config.json`. Follows json syntax with no e
 
 * verbose logging (true/false): writes messages to spots logfile
 * check crc (true/false): whether to check crc (recommended) or not
+* check phase (true/false): simple check if there is a phase shift and correction
 * use metric (true/false): show values in metric system or not (altitude and velocity)
 * apply bit error correction (true/false): whether to try to correct bit errors or not (CPU demanding if true)
 * read from file (true/false): if true, read samples from a file rather than from the USB dongle
@@ -109,14 +111,40 @@ Configuration for spots is in `spots_config.json`. Follows json syntax with no e
 * log file (string): The name of the log file
 * log max bytes (integer): How many bytes to log before the log file is rotated
 * log backup count (integer): How many roted log files to keep
+* spots server address (localhost or ip-address): the address for the server
+* spots server port (5051): the server port
+
+## Client/Server
+
+Use nginx as proxy server with the following added to the nginx conf file
+
+    location /spots {
+    try_files $uri $uri/ $uri/index.html $uri.html @spots;
+    }
+
+    location @spots {
+        proxy_pass http://rpi2.local:8080;
+        proxy_redirect     off;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Host $server_name;
+    }
+
+So, nginx will forward any http requests to spots (e.g. `http://www.viltstigen.se/spots`) to 
+`http://rpi2.local:8080` (spots runs on rpi2-node).
+
+Flask is running using Gunicorn, listening on port 8080, see `emitter.py` and `spots_emitter.conf` for details.
+Use `supervisor` to control processes running as daemons.
+The flask application communicates with the radar application (that listen on port 5051) through a simple text
+protocol, see files `emitter.py` and `server.py`
+
+Using some html, bootstrap css and javascripts (jQuery and Highcharts), see files spots.html and spots.js, it is
+possible to get this view in a web browser.
+
+![preamble](spots.png)
 
 ## What's next?
 
 There is probably inconsistencies, bugs, optimizations, documentation etc etc to make.
 If you find something, let me know but be aware that this is a leisure thing for me.
-
-Current directions are:
-
-* decode more information from received messages
-* do some more statistical collection
-* add web server/client possibilities

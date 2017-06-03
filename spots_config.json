@@ -4,13 +4,16 @@
   "check phase": false,
   "use metric": true,
   "apply bit err correction": false,
+  "run as daemon": true,
   "read from file": false,
   "file name": "modes1.bin",
-  "use text display": true,
+  "use text display": false,
   "max blip ttl": 60.0,
-  "user latitude": 0.0,
-  "user longitude": 0.0,
+  "user latitude": 55.732727,
+  "user longitude": 13.172479,
   "log file": "spots.log",
   "log max bytes": 1048576,
-  "log backup count": 10
+  "log backup count": 10,
+  "spots server address": "localhost",
+  "spots server port": 5051
 }

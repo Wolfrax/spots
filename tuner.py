@@ -7,6 +7,8 @@ import threading
 import rtlsdr
 import time
 
+__author__ = 'Wolfrax'
+
 """
 A Software Defined Radio (SDR) module reading IQ samples from a HW tuner and detects ADS-B messages
 
@@ -36,6 +38,8 @@ class Tuner(basic.ADSB, threading.Thread):
     def __init__(self, sr=2.0e6, cf=1090e6, gain='max', filename=None):
         threading.Thread.__init__(self, name="Tuner")
         basic.ADSB.__init__(self)
+
+        self.finished = threading.Event()
 
         self.daemon = True
         self.logger = logging.getLogger('spots.Tuner')
@@ -128,15 +132,16 @@ class Tuner(basic.ADSB, threading.Thread):
             samples = self._iq_to_uint(samples)
 
             adsb_samples = self._detect_adsb(samples)  # This is where we scan for the preamble
-            basic.statistics.valid_preambles += len(adsb_samples)
+            basic.statistics['valid_preambles'] += len(adsb_samples)
             self.data.put(adsb_samples)
 
         except Queue.Full:
             self.logger.error('Queue is full!')
-            self._die()
+            self.die()
 
-    def _die(self):
+    def die(self):
         self.logger.info("Tuner dying...")
+        self.finished.set()
         if self._cb_func is not None:
             self._cb_func(None, stop=True)
         if self.filename is None:
@@ -147,7 +152,7 @@ class Tuner(basic.ADSB, threading.Thread):
     def read(self, cb_func):
         self._cb_func = cb_func
         try:
-            while True:
+            while not self.finished.is_set():
                 try:
                     msgs = self.data.get(timeout=1.0)  # Timeout after 1 sec to ensure we are not blocked forever
                 except Queue.Empty:
@@ -155,23 +160,10 @@ class Tuner(basic.ADSB, threading.Thread):
 
                 self._cb_func(msgs)
 
-                # If we are reading from file, sleep for 2 secs to allow for printout, then raise exception and die
-                if self.cfg_read_from_file and not self.cfg_use_text_display:
-                    time.sleep(2)
-                    raise KeyboardInterrupt
+                if not self.cfg_run_as_daemon:
+                    # If we are reading from file, sleep for 2 secs to allow for printout, then raise exception and die
+                    if self.cfg_read_from_file and not self.cfg_use_text_display:
+                        time.sleep(2)
+                        self.die()
         except KeyboardInterrupt:
-            self._die()
-
-
-def tuner_read(msgs):
-    print 'found {} signals'.format(len(msgs))
-
-
-def main():
-    tuner1090 = Tuner()
-    tuner1090.start()
-    tuner1090.read(tuner_read)
-
-
-if __name__ == '__main__':
-    main()
+            self.die()

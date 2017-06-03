@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Spots</title>
+    <script type="text/javascript" src="https://code.highcharts.com/highcharts.js"></script>
+    <script type="text/javascript" src="https://code.highcharts.com/highcharts-more.js"></script>
+    <script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script type="text/javascript" src="https://code.highcharts.com/modules/solid-gauge.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="spots.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <style>
+        table {
+            font-family: arial, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        td, th {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+
+    </style>
+</head>
+
+<body onload="Spots();">
+
+<div class="container">
+    <div class="col-sm-12">
+        <div id="header1">
+            <h2>Spots at Viltstigen 3, Lund</h2>
+            <h4 id="hdCurrentData"></h4>
+        </div>
+    </div>
+    <div class="col-sm-12">
+        <div id="CurrentData">
+            <table id="tbCurrentData">
+                <thead>
+                <tr>
+                    <th>ICAO</th>
+                    <th>Mode</th>
+                    <th>Squawk</th>
+                    <th>Flight</th>
+                    <th>Altitude</th>
+                    <th>Speed</th>
+                    <th>Heading</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Signal (%)</th>
+                    <th>Messages</th>
+                    <th>Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-sm-12">
+        <div id="header2">
+            <h3>Statistics</h3>
+            <h4 id="hdStatistics"></h4>
+        </div>
+    </div>
+
+    <div class="col-sm-10">
+        <div id="graphStatistics"></div>
+    </div>
+    <div class="col-sm-2">
+        <div id="graphPreamble" style="width:150px"></div>
+    </div>
+    <div id="footer">Mats Melander (c)</div>
+
+    <script type="text/javascript">
+        function Spots() {
+            var Plot = new Plotter();
+            var prev_nr_preambles = 0;
+
+            function Table(series) {
+                var rows = "";
+                var i;
+
+                for (i = 0; i < series.length; i++) {
+                    rows += "<tr><td>" +
+                        series[i]['ICAO24'] + "</td><td>" +
+                        series[i]['downlink_format'] + "</td><td>" +
+                        series[i]['squawk'] + "</td><td>" +
+                        "<a href='https://planefinder.net/data/flight/" + series[i]['call_sign'] + "'>" +
+                        series[i]['call_sign'] + "</a>" + "</td><td>" +
+                        series[i]['altitude'] + "</td><td>" +
+                        series[i]['velocity'] + "</td><td>" +
+                        series[i]['heading'] + "</td><td>" +
+                            "<a href='http://www.latlong.net/c/?lat=" + series[i]['latitude'] +
+                            "&long=" + series[i]['longitude'] + "'>" +
+                        series[i]['latitude'] + "</a>" + "</td><td>" +
+                            "<a href='http://www.latlong.net/c/?lat=" + series[i]['latitude'] +
+                            "&long=" + series[i]['longitude'] + "'>" +
+                        series[i]['longitude'] + "</a>" + "</td><td>" +
+                        series[i]['signal_strength'] + "</td><td>" +
+                        series[i]['count'] + "</td><td>" +
+                        series[i]['timestamp'] + "</td></tr>";
+                }
+
+                $("#tbCurrentData").find("tbody").empty();
+                $(rows).appendTo("#tbCurrentData tbody");
+            }
+
+            function Statistics(series) {
+                var stats = [];
+                var preambles_per_secs = (series['valid_preambles'] - prev_nr_preambles) / 10;
+
+                if (prev_nr_preambles !== 0)
+                    Plot.preamble(preambles_per_secs);
+                prev_nr_preambles = series['valid_preambles'];
+
+                $("#hdStatistics").html("Version " + series['spots_version'] + " " +
+                    "running since " + series['start_time_string']);
+
+                stats.push(series['df_total']);
+                stats.push(series['df_0']);
+                stats.push(series['df_4']);
+                stats.push(series['df_5']);
+                stats.push(series['df_11']);
+                stats.push(series['df_16']);
+                stats.push(series['df_17']);
+                stats.push(series['df_18']);
+                stats.push(series['df_20']);
+                stats.push(series['df_21']);
+
+                Plot.statistics(stats);
+            }
+
+            function SignalCache(series) {
+                Plot.signal(series);
+            }
+
+            function updateTable() {
+                $.ajax({
+                    url: "/spots/data",
+                    method: 'GET',
+                    dataType: 'json',
+                    cache: false
+                }).done(function (series) {
+                    setTimeout(updateTable, 1000);
+                    Table(series);
+                });
+            }
+
+            function updateStatistics() {
+                $.ajax({
+                    url: "/spots/statistics",
+                    method: 'GET',
+                    dataType: 'json',
+                    cache: false
+                }).done(function (series) {
+                    setTimeout(updateStatistics, 10000);
+                    Statistics(series);
+                });
+            }
+
+            updateTable();
+            updateStatistics();
+        }
+    </script>
+</div>
+</body>
+</html>

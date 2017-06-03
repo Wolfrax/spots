@@ -1,5 +1,5 @@
 {
-  "type code": [
+  "type_code": [
     "0: No position information",
     "1: Identification (Category D)",
     "2: Identification (Category C)",
@@ -33,7 +33,7 @@
     "30: No longer used",
     "31: Aircraft Operational Status"
   ],
-  "downlink format": [
+  "downlink_format": [
     "0: Short Air-Air Surveillance",
     "1: Unknown DF",
     "2: Unknown DF",
@@ -68,7 +68,7 @@
     "31: Unknown DF",
     "32: SSR : Mode A/C Reply"
   ],
-  "flight status": [
+  "flight_status": [
     "Normal, Airborne",
     "Normal, On the ground",
     "ALERT,  Airborne",
