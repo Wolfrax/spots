@@ -4,6 +4,9 @@ An implementation to detect and decode Mode-S messages modulated on 1090MHz.
 The implementation is implemented fully in Python (2.7.9), tested on raspberry pi 2 model B hardware using an 
 RTL-SDR USB dongle.
 
+Try [http://www.viltstigen.se/spots/spots](http://www.viltstigen.se/spots/spots) for live demo. 
+No guarantee however that it is up and running.
+
 ![preamble](adsb-packet.png)
 
 Focus is on using Python idioms and readability, not optimizations.
@@ -23,8 +26,7 @@ The following message will be decoded:
 * Surveillance altitude reply (Downlink format: 4)
 * Surveillande identity reply (Downlink format: 5)
 * Long air-to-air surveillance (Downlink format: 16)
-* ADS-B (Downlink format:17)
-* Extended Squitter (Downlink format: 17)
+* ADS-B, Extended Squitter (Downlink format:17)
 * Comm BDS altitude reply (Downlink format: 20)
 * Comm BDS identity reply (Downlink format: 21)
 
@@ -37,7 +39,7 @@ Some statistics is collected, this data is also accessible through the server
 ## Dependencies
 
 Spots uses [pyrtlsdr](https://github.com/roger-/pyrtlsdr) v0.2.0 to read samples. 
-Use the installation description to install this.
+Use the installation description to install.
 
 pyrtlsdr is wrapper for rtlsdr library, so this needs to be installed.
 
@@ -86,6 +88,7 @@ as references for spots
 * [dump1090 by flighaware](https://github.com/flightaware/dump1090), another fork
 * [java adsb at OpenSky](https://github.com/openskynetwork/java-adsb), a java implementation
 * [ADS-B decoding guide](http://adsb-decode-guide.readthedocs.io/en/latest/index.html)
+* [Software Defined Radio, lab at Berkley](http://inst.eecs.berkeley.edu/~ee123/sp15/lab/lab2/lab2-TimeDomain-SDR.html)
 
 ## Usage
 
@@ -102,6 +105,7 @@ Configuration for spots is in `spots_config.json`. Follows json syntax with no e
 * check phase (true/false): simple check if there is a phase shift and correction
 * use metric (true/false): show values in metric system or not (altitude and velocity)
 * apply bit error correction (true/false): whether to try to correct bit errors or not (CPU demanding if true)
+* run as daemon (true/false): if true and read from file is true, do not terminate the program when file read is done 
 * read from file (true/false): if true, read samples from a file rather than from the USB dongle
 * file name (string): if "read from file" is true, this is the file to read from
 * use text display (true/false): if true, show data in table format, if false show in serialised way
