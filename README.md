@@ -161,5 +161,5 @@ possible to get this view in a web browser.
 
 ## What's next?
 
-There is probably inconsistencies, bugs, optimizations, documentation etc etc to make.
+There are probably inconsistencies, bugs, optimizations, documentation etc etc to make.
 If you find something, let me know but be aware that this is a leisure thing for me.
