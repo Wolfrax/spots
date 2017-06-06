@@ -75,6 +75,7 @@ Add these lines
 Finally
 
     $ sudo cp ../rtl-sdr.rules /etc/udev/rules.d/
+    $ pip install pyrtlsdr
     $ sudo shutdown -r 0
 
 
@@ -127,7 +128,7 @@ Use nginx as proxy server with the following added to the nginx conf file
     }
 
     location @spots {
-        proxy_pass http://rpi2.local:8080;
+        proxy_pass http://rpi3.local:8080;
         proxy_redirect     off;
         proxy_set_header   Host $host;
         proxy_set_header   X-Real-IP $remote_addr;
@@ -136,10 +137,20 @@ Use nginx as proxy server with the following added to the nginx conf file
     }
 
 So, nginx will forward any http requests to spots (e.g. `http://www.viltstigen.se/spots`) to 
-`http://rpi2.local:8080` (spots runs on rpi2-node).
+`http://rpi3.local:8080` (spots runs on rpi3-node). Restart nginx to capture updates through
+
+    $ sudo /etc/init.d/nginx restart
+    $ /etc/init.d/nginx status
 
 Flask is running using Gunicorn, listening on port 8080, see `emitter.py` and `spots_emitter.conf` for details.
 Use `supervisor` to control processes running as daemons.
+
+    $ sudo ln -s /home/pi/app/spots/spots_emitter.conf /etc/supervisor/conf.d/spots_emitter.conf
+    $ sudo ln -s /home/pi/app/spots/radar.conf /etc/supervisor/conf.d/radar.conf
+    $ sudo supervisorctl reread
+    $ sudo supervisorctl update
+    $ sudo supervisorctl status
+    
 The flask application communicates with the radar application (that listen on port 5051) through a simple text
 protocol, see files `emitter.py` and `server.py`
 

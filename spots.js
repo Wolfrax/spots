@@ -114,7 +114,7 @@ function Plotter() {
         },
         yAxis: {
             min: 0,
-            max: 100,
+            max: 400,
             title: {
                 text: 'Preamble/sec'
             }
