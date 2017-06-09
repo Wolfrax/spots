@@ -329,8 +329,14 @@ class Squitter(basic.ADSB):
 
         self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
         self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
+
         self.even_pos = False
         self.odd_pos = False
+
+        self.odd_raw_latitude = 0
+        self.odd_raw_longitude = 0
+        self.even_raw_latitude = 0
+        self.even_raw_longitude = 0
 
         return True
 

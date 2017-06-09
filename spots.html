@@ -45,6 +45,7 @@
             <table id="tbCurrentData">
                 <thead>
                 <tr>
+                    <th>No</th>
                     <th>ICAO</th>
                     <th>Mode</th>
                     <th>Squawk</th>
@@ -91,6 +92,7 @@
 
                 for (i = 0; i < series.length; i++) {
                     rows += "<tr><td>" +
+                        (i + 1) + "</td><td>" +
                         series[i]['ICAO24'] + "</td><td>" +
                         series[i]['downlink_format'] + "</td><td>" +
                         series[i]['squawk'] + "</td><td>" +
