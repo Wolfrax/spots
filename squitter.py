@@ -296,8 +296,12 @@ class Squitter(basic.ADSB):
         if self.odd_pos is False or self.even_pos is False:
             return False
 
-        air_dlat_0 = 360 / 60.0
-        air_dlat_1 = 360 / 59.0
+        longitude = 0.0
+
+        air_dlat = 90.0 if self.on_ground else 360.0
+
+        air_dlat_0 = air_dlat / 60.0
+        air_dlat_1 = air_dlat / 59.0
         lat0 = self.even_raw_latitude
         lat1 = self.odd_raw_latitude
         lon0 = self.even_raw_longitude
@@ -308,24 +312,31 @@ class Squitter(basic.ADSB):
         rlat0 = air_dlat_0 * (j % 60 + lat0 / 131072.0)
         rlat1 = air_dlat_1 * (j % 59 + lat1 / 131072.0)
 
-        # Adjust if we are on southern hemisphere by substracting 360 from latitude
-        if rlat0 >= 270:
-            rlat0 -= 360
-        if rlat1 >= 270:
-            rlat1 -= 360
+        if self.on_ground:
+            surface_rlat = self['latitude'] if self['latitude'] != 0 else self.cfg_latitude
+            surface_rlon = self['longitude'] if self['longitude'] != 0 else self.cfg_longitude
+            rlat0 += math.floor(surface_rlat / 90.0) * 90.0
+            rlat1 += math.floor(surface_rlat / 90.0) * 90.0
+            longitude = 90 + math.floor(surface_rlon / 90.0) * 90.0
+        else:  # Adjust if we are on southern hemisphere by substracting 360 from latitude
+            if rlat0 >= 270:
+                rlat0 -= 360
+            if rlat1 >= 270:
+                rlat1 -= 360
 
         if rlat0 < -90 or rlat0 > 90 or rlat1 < -90 or rlat1 > 90:
             return False
         if CPR_NL(rlat0) != CPR_NL(rlat1):
             return False
 
-        ni = max(CPR_NL(rlat1) - 1, 1)
-        m = int(math.floor((((lon0 * (CPR_NL(rlat1) - 1)) - (lon1 * CPR_NL(rlat1))) / 131072.0) + 0.5))
-        longitude = (360.0 / ni) * ((m % ni) + lon1 / 131072.0)
-        latitude = rlat1
+        if not self.on_ground:
+            ni = max(CPR_NL(rlat1) - 1, 1)
+            m = int(math.floor((((lon0 * (CPR_NL(rlat1) - 1)) - (lon1 * CPR_NL(rlat1))) / 131072.0) + 0.5))
+            longitude = (360.0 / ni) * ((m % ni) + lon1 / 131072.0)
+            if longitude > 180:
+                longitude -= 360
 
-        if longitude > 180:
-            longitude -= 360
+        latitude = rlat1
 
         self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
         self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
@@ -591,22 +602,69 @@ class Squitter(basic.ADSB):
     def _update_statistics(self):
         if self['downlink_format'] == self.DF_SHORT_AIR2AIR_SURVEILLANCE_0:
             basic.statistics['df_0'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_1:
+            basic.statistics['df_1'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_2:
+            basic.statistics['df_2'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_3:
+            basic.statistics['df_3'] += 1
         elif self['downlink_format'] == self.DF_SURVEILLANCE_ALTITUDE_REPLY_4:
             basic.statistics['df_4'] += 1
         elif self['downlink_format'] == self.DF_SURVEILLANCE_IDENTITY_REPLY_5:
             basic.statistics['df_5'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_6:
+            basic.statistics['df_6'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_7:
+            basic.statistics['df_7'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_8:
+            basic.statistics['df_8'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_9:
+            basic.statistics['df_9'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_10:
+            basic.statistics['df_10'] += 1
         elif self['downlink_format'] == self.DF_ALL_CALL_REPLY_11:
             basic.statistics['df_11'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_12:
+            basic.statistics['df_12'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_13:
+            basic.statistics['df_13'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_14:
+            basic.statistics['df_14'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_15:
+            basic.statistics['df_15'] += 1
         elif self['downlink_format'] == self.DF_LONG_AIR2AIR_SURVEILLANCE_16:
             basic.statistics['df_16'] += 1
         elif self['downlink_format'] == self.DF_ADSB_MSG_17:
             basic.statistics['df_17'] += 1
         elif self['downlink_format'] == self.DF_EXTENDED_SQUITTER_18:
             basic.statistics['df_18'] += 1
+        elif self['downlink_format'] == self.DF_MILITARY_EXTENDED_SQUITTER_19:
+            basic.statistics['df_19'] += 1
         elif self['downlink_format'] == self.DF_COMM_BDS_ALTITUDE_REPLY_20:
             basic.statistics['df_20'] += 1
         elif self['downlink_format'] == self.DF_COMM_BDS_IDENTITY_REPLY_21:
             basic.statistics['df_21'] += 1
+        elif self['downlink_format'] == self.DF_MILITARY_USE_22:
+            basic.statistics['df_22'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_23:
+            basic.statistics['df_23'] += 1
+        elif self['downlink_format'] == self.DF_COMM_D_EXTENDED_LENGTH_MESSAGE_24:
+            basic.statistics['df_24'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_25:
+            basic.statistics['df_25'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_26:
+            basic.statistics['df_26'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_27:
+            basic.statistics['df_27'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_28:
+            basic.statistics['df_28'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_29:
+            basic.statistics['df_29'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_30:
+            basic.statistics['df_30'] += 1
+        elif self['downlink_format'] == self.DF_UNKNOWN_31:
+            basic.statistics['df_31'] += 1
+
         basic.statistics['df_total'] += 1
 
     def decode(self):

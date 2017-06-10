@@ -16,14 +16,37 @@ function Plotter() {
                 categories: [
                     'DF Total',
                     'DF 0',
+                    'DF 1', //
+                    'DF 2', //
+                    'DF 3', //
                     'DF 4',
                     'DF 5',
+                    'DF 6', //
+                    'DF 7',
+                    'DF 8',
+                    'DF 9',
+                    'DF 10', //
                     'DF 11',
+                    'DF 12', //
+                    'DF 13', //
+                    'DF 14', //
+                    'DF 15', //
                     'DF 16',
                     'DF 17',
                     'DF 18',
+                    'DF 19', //
                     'DF 20',
-                    'DF 21'
+                    'DF 21',
+                    'DF 22', //
+                    'DF 23', //
+                    'DF 24', //
+                    'DF 25', //
+                    'DF 26', //
+                    'DF 27', //
+                    'DF 28', //
+                    'DF 29', //
+                    'DF 30', //
+                    'DF 31'  //
                 ],
                 crosshair: true
             },
