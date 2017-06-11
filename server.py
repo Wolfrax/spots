@@ -56,4 +56,3 @@ class SpotsServer(SocketServer.ThreadingMixIn, SocketServer.TCPServer):
     def die(self):
         self.shutdown()
         self.server_close()
-

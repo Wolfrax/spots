@@ -1,5 +1,5 @@
 {
-  "verbose logging": true,
+  "verbose logging": false,
   "check crc": true,
   "check phase": false,
   "use metric": true,

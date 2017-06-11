@@ -217,6 +217,7 @@ class Squitter(basic.ADSB):
         self.even_raw_longitude = 0
         self.odd_pos = False
         self.even_pos = False
+        self.even_then_odd_order = False
         self.on_ground = False
 
         self.logger = logging.getLogger('spots.squitter')
@@ -283,6 +284,7 @@ class Squitter(basic.ADSB):
 
         self.odd_pos = msg.odd_pos if msg.odd_pos else self.odd_pos
         self.even_pos = msg.even_pos if msg.even_pos else self.even_pos
+        self.even_then_odd_order = msg.even_then_odd_order if msg.even_then_odd_order else self.even_then_odd_order
 
     def get_downlink_format(self):
         return self['downlink_format']
@@ -330,17 +332,25 @@ class Squitter(basic.ADSB):
             return False
 
         if not self.on_ground:
-            ni = max(CPR_NL(rlat1) - 1, 1)
-            m = int(math.floor((((lon0 * (CPR_NL(rlat1) - 1)) - (lon1 * CPR_NL(rlat1))) / 131072.0) + 0.5))
-            longitude = (360.0 / ni) * ((m % ni) + lon1 / 131072.0)
-            if longitude > 180:
-                longitude -= 360
+            if self.even_then_odd_order:
+                # Decode using odd as the latest message
+                ni = max(CPR_NL(rlat1) - 1, 1)
+                m = int(math.floor((((lon0 * (CPR_NL(rlat1) - 1)) - (lon1 * CPR_NL(rlat1))) / 131072.0) + 0.5))
+                longitude = (360.0 / ni) * ((m % ni) + lon1 / 131072.0)
+            else:
+                # Decode using even as the latest message
+                ni = max(CPR_NL(rlat0) - 1, 1)
+                m = int(math.floor((((lon0 * (CPR_NL(rlat0) - 1)) - (lon1 * CPR_NL(rlat0))) / 131072.0) + 0.5))
+                longitude = (360.0 / ni) * ((m % ni) + lon0 / 131072.0)
 
+        if longitude > 180:
+            longitude -= 360
         latitude = rlat1
 
         self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
         self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
 
+        # Reset all flags
         self.even_pos = False
         self.odd_pos = False
 
@@ -348,6 +358,8 @@ class Squitter(basic.ADSB):
         self.odd_raw_longitude = 0
         self.even_raw_latitude = 0
         self.even_raw_longitude = 0
+
+        self.even_then_odd_order = False
 
         return True
 
@@ -395,6 +407,7 @@ class Squitter(basic.ADSB):
         self.data['longitude'] = str(round(rlon, 3)) if rlon != 0.0 else ""
         self.even_pos = False
         self.odd_pos = False
+        self.even_then_odd_order = False
 
         return
 
@@ -537,6 +550,8 @@ class Squitter(basic.ADSB):
 
             if odd:
                 self.odd_pos = True
+                if self.even_pos:
+                    self.even_then_odd_order = True
             else:
                 self.even_pos = True
 

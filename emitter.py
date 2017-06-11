@@ -31,12 +31,12 @@ def get_msg(message):
 
 @app.route("/spots/data")
 def spots_data():
-    return get_msg("GET DATA STR")
+    return app.response_class(get_msg("GET DATA STR"), content_type='application/json')
 
 
 @app.route("/spots/statistics")
 def spots_statistics():
-    return get_msg("GET STATISTICS STR")
+    return app.response_class(get_msg("GET STATISTICS STR"), content_type='application/json')
 
 
 if __name__ == "__main__":
