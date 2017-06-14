@@ -14,6 +14,6 @@
   "log file": "spots.log",
   "log max bytes": 1048576,
   "log backup count": 10,
-  "spots server address": "localhost",
+  "spots server address": "",
   "spots server port": 5051
 }

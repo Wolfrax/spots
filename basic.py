@@ -38,7 +38,7 @@ class ADSB:
     This class defines fundamental constants and is not supposed to be instantiated
     """
 
-    VERSION = "2.0"
+    VERSION = "2.1"
 
     # basic constants
     MODES_SIGMIN = 0
@@ -68,6 +68,8 @@ class ADSB:
 
     METER_PER_FOOT = 0.3048
     KPH_PER_KNOT = 1.852
+
+    MAX_17_BITS = float(2**17)
 
     # Downlink formats
     DF_SHORT_AIR2AIR_SURVEILLANCE_0 = "0"

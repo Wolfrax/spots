@@ -61,7 +61,7 @@
         function initMap() {
             Map = new google.maps.Map(document.getElementById('map_canvas'), {
                 center: {lat: CenterLat, lng: CenterLon},
-                zoom: 5,
+                zoom: 8,
                 mapTypeId: google.maps.MapTypeId.ROADMAP
             });
             window.setInterval(function () {
@@ -74,17 +74,17 @@
             var r = 255, g = 255, b = 0;
             var maxalt = 40000;
             /* Max altitude in the average case */
-            var invalt = maxalt - parseInt(plane['altitude']);
+            var invalt = maxalt - parseFloat(plane['altitude']);
             var selected = (Selected == plane['ICAO24']);
             if (invalt < 0) invalt = 0;
-            b = parseInt(255 / maxalt * invalt);
+            b = parseFloat(255 / maxalt * invalt);
             return {
                 strokeWeight: (selected ? 2 : 1),
                 path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
                 scale: 5,
                 fillColor: 'rgb(' + r + ',' + g + ',' + b + ')',
                 fillOpacity: 0.9,
-                rotation: parseInt(plane['heading'])
+                rotation: parseFloat(plane['heading'])
             };
         }
         function selectPlane() {
@@ -133,20 +133,20 @@
                         var myplane = Planes[plane['ICAO24']];
                         marker = myplane.marker;
                         var icon = marker.getIcon();
-                        var newpos = new google.maps.LatLng(parseInt(plane['latitude']), parseInt(plane['longitude']));
+                        var newpos = new google.maps.LatLng(parseFloat(plane['latitude']), parseFloat(plane['longitude']));
                         marker.setPosition(newpos);
                         marker.setIcon(getIconForPlane(plane));
-                        myplane.altitude = parseInt(plane['altitude']);
-                        myplane.speed = parseInt(plane['velocity']);
-                        myplane.lat = parseInt(plane['latitude']);
-                        myplane.lon = parseInt(plane['longitude']);
-                        myplane.track = parseInt(plane['heading']);
+                        myplane.altitude = parseFloat(plane['altitude']);
+                        myplane.speed = parseFloat(plane['velocity']);
+                        myplane.lat = parseFloat(plane['latitude']);
+                        myplane.lon = parseFloat(plane['longitude']);
+                        myplane.track = parseFloat(plane['heading']);
                         myplane.flight = plane['call_sign'];
                         if (myplane['ICAO24'] == Selected)
                             refreshSelectedInfo();
                     } else {
                         marker = new google.maps.Marker({
-                            position: new google.maps.LatLng(parseInt(plane['latitude']), parseInt(plane['longitude'])),
+                            position: new google.maps.LatLng(parseFloat(plane['latitude']), parseFloat(plane['longitude'])),
                             map: Map,
                             icon: getIconForPlane(plane)
                         });

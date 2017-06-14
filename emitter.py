@@ -12,8 +12,21 @@ cfg_server_port = 5051
 
 
 def get_msg(message):
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((cfg_server_address, cfg_server_port))
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    except socket.error as msg:
+        print "Sock err (1): {}".format(msg)
+        sock = None
+        return None
+
+    try:
+        sock.connect((cfg_server_address, cfg_server_port))
+    except socket.error as msg:
+        print "Sock err (2): {}".format(msg)
+        sock = None
+        return None
+
     data = []
     try:
         sock.sendall(message)
@@ -24,6 +37,8 @@ def get_msg(message):
             else:
                 data.append(stream)
         data = ''.join(data)
+    except socket.error as msg:
+        print "Sock err (3): {}".format(msg)
     finally:
         sock.close()
         return data

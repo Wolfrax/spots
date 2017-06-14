@@ -1,6 +1,7 @@
 import basic
 import math
 import logging
+import time
 
 __author__ = 'Wolfrax'
 
@@ -215,9 +216,8 @@ class Squitter(basic.ADSB):
         self.odd_raw_longitude = 0
         self.even_raw_latitude = 0
         self.even_raw_longitude = 0
-        self.odd_pos = False
-        self.even_pos = False
-        self.even_then_odd_order = False
+        self.even_time = 0
+        self.odd_time = 0
         self.on_ground = False
 
         self.logger = logging.getLogger('spots.squitter')
@@ -278,13 +278,11 @@ class Squitter(basic.ADSB):
 
         self.odd_raw_latitude = msg.odd_raw_latitude if msg.odd_raw_latitude != 0 else self.odd_raw_latitude
         self.odd_raw_longitude = msg.odd_raw_longitude if msg.odd_raw_longitude != 0 else self.odd_raw_longitude
-
         self.even_raw_latitude = msg.even_raw_latitude if msg.even_raw_latitude != 0 else self.even_raw_latitude
         self.even_raw_longitude = msg.even_raw_longitude if msg.even_raw_longitude != 0 else self.even_raw_longitude
 
-        self.odd_pos = msg.odd_pos if msg.odd_pos else self.odd_pos
-        self.even_pos = msg.even_pos if msg.even_pos else self.even_pos
-        self.even_then_odd_order = msg.even_then_odd_order if msg.even_then_odd_order else self.even_then_odd_order
+        self.even_time = msg.even_time if msg.even_time != 0.0 else self.even_time
+        self.odd_time = msg.odd_time if msg.odd_time != 0.0 else self.odd_time
 
     def get_downlink_format(self):
         return self['downlink_format']
@@ -292,124 +290,98 @@ class Squitter(basic.ADSB):
     def _get_msg_byte(self, byte_nr):
         return (self.msg >> (self.no_of_bits - (byte_nr + 1) * 8)) & 0xFF
 
+    def decodeCPR_relative(self):
+        # Basic algorithms
+        #   https://adsb-decode-guide.readthedocs.io/en/latest/content/airborne-position.html
+
+        if self.odd_time == 0 and self.even_time == 0:
+            return False  # Got to have at least one message
+
+        if self.odd_time == 0:  # Even message
+            d_lat = 360.0 / 60.0
+            lat_cpr = self.even_raw_latitude / self.MAX_17_BITS
+            lon_cpr = self.even_raw_longitude / self.MAX_17_BITS
+        else:                   # Odd message
+            d_lat = 360.0 / 59.0
+            lat_cpr = self.odd_raw_latitude / self.MAX_17_BITS
+            lon_cpr = self.odd_raw_longitude / self.MAX_17_BITS
+
+        j = math.floor(self.cfg_latitude / d_lat) + \
+            math.floor((self.cfg_latitude % d_lat) / d_lat - lat_cpr + 0.5)  # latitude index
+
+        latitude = d_lat * (j + lat_cpr)
+
+        if CPR_NL(latitude) == 0:
+            d_lon = 360.0
+        else:
+            d_lon = 360.0 / CPR_NL(latitude)
+
+        m = math.floor(self.cfg_longitude / d_lon) + math.floor((self.cfg_longitude % d_lon) / d_lon - lon_cpr + 0.5)
+
+        longitude = d_lon * (m + lon_cpr)
+
+        self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
+        self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
+
+        return True
+
     def decodeCPR(self):
-        # Basic algorithm: http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
+        # Basic algorithms
+        #   http://www.lll.lu/~edward/edward/adsb/DecodingADSBposition.html
+        #   https://adsb-decode-guide.readthedocs.io/en/latest/content/airborne-position.html
 
-        if self.odd_pos is False or self.even_pos is False:
-            return False
+        if self.odd_time == 0 or self.even_time == 0:
+            return False  # we need both even + odd messages
 
-        longitude = 0.0
+        cpr_lat_even = self.even_raw_latitude / self.MAX_17_BITS
+        cpr_lon_even = self.even_raw_longitude / self.MAX_17_BITS
+        cpr_lat_odd = self.odd_raw_latitude / self.MAX_17_BITS
+        cpr_lon_odd = self.odd_raw_longitude / self.MAX_17_BITS
 
-        air_dlat = 90.0 if self.on_ground else 360.0
+        j = math.floor(59 * cpr_lat_even - 60 * cpr_lat_odd + 0.5)  # latitude index
 
-        air_dlat_0 = air_dlat / 60.0
-        air_dlat_1 = air_dlat / 59.0
-        lat0 = self.even_raw_latitude
-        lat1 = self.odd_raw_latitude
-        lon0 = self.even_raw_longitude
-        lon1 = self.odd_raw_longitude
+        latitude_even = float((360.0 / 60.0) * (j % 60 + cpr_lat_even))
+        latitude_odd = float((360.0 / 59.0) * (j % 59 + cpr_lat_odd))
 
-        j = int(math.floor(((59 * lat0 - 60 * lat1) / 131072.0) + 0.5))
+        # Southern hemisphere: latitudes are between 270 to 360 degrees, make it +/- 90 degrees
+        if latitude_even >= 270:
+            latitude_even -= 360
+        if latitude_odd >= 270:
+            latitude_odd -= 360
 
-        rlat0 = air_dlat_0 * (j % 60 + lat0 / 131072.0)
-        rlat1 = air_dlat_1 * (j % 59 + lat1 / 131072.0)
+        if CPR_NL(latitude_even) != CPR_NL(latitude_odd):
+            return False  # Different latitude zones, not possible to compute position now
 
-        if self.on_ground:
-            surface_rlat = self['latitude'] if self['latitude'] != 0 else self.cfg_latitude
-            surface_rlon = self['longitude'] if self['longitude'] != 0 else self.cfg_longitude
-            rlat0 += math.floor(surface_rlat / 90.0) * 90.0
-            rlat1 += math.floor(surface_rlat / 90.0) * 90.0
-            longitude = 90 + math.floor(surface_rlon / 90.0) * 90.0
-        else:  # Adjust if we are on southern hemisphere by substracting 360 from latitude
-            if rlat0 >= 270:
-                rlat0 -= 360
-            if rlat1 >= 270:
-                rlat1 -= 360
+        # We have Ok conditions, set the latitude and continue with longitude calculation
+        latitude = latitude_even if self.even_time >= self.odd_time else latitude_odd
 
-        if rlat0 < -90 or rlat0 > 90 or rlat1 < -90 or rlat1 > 90:
-            return False
-        if CPR_NL(rlat0) != CPR_NL(rlat1):
-            return False
+        if self.even_time >= self.odd_time:
+            ni = max(CPR_NL(latitude_even), 1)
+            dlon = 360.0 / ni
+            m = math.floor(cpr_lon_even * (CPR_NL(latitude_even) - 1) - cpr_lon_odd * CPR_NL(latitude_even) + 0.5)
+            longitude = dlon * (m % ni + cpr_lon_even)
+        else:
+            ni = max(CPR_NL(latitude_odd) - 1, 1)
+            dlon = 360.0 / ni
+            m = math.floor(cpr_lon_even * (CPR_NL(latitude_odd) - 1) - cpr_lon_odd * CPR_NL(latitude_odd) + 0.5)
+            longitude = dlon * (m % ni + cpr_lon_odd)
 
-        if not self.on_ground:
-            if self.even_then_odd_order:
-                # Decode using odd as the latest message
-                ni = max(CPR_NL(rlat1) - 1, 1)
-                m = int(math.floor((((lon0 * (CPR_NL(rlat1) - 1)) - (lon1 * CPR_NL(rlat1))) / 131072.0) + 0.5))
-                longitude = (360.0 / ni) * ((m % ni) + lon1 / 131072.0)
-            else:
-                # Decode using even as the latest message
-                ni = max(CPR_NL(rlat0) - 1, 1)
-                m = int(math.floor((((lon0 * (CPR_NL(rlat0) - 1)) - (lon1 * CPR_NL(rlat0))) / 131072.0) + 0.5))
-                longitude = (360.0 / ni) * ((m % ni) + lon0 / 131072.0)
-
-        if longitude > 180:
+        if longitude >= 180:
             longitude -= 360
-        latitude = rlat1
 
         self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
         self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
 
         # Reset all flags
-        self.even_pos = False
-        self.odd_pos = False
+        self.odd_time = 0
+        self.even_time = 0
 
         self.odd_raw_latitude = 0
         self.odd_raw_longitude = 0
         self.even_raw_latitude = 0
         self.even_raw_longitude = 0
 
-        self.even_then_odd_order = False
-
         return True
-
-    def decodeCPR_relative(self):
-        if self.odd_pos is False or self.even_pos is False:
-            return False
-
-        air_dlat_1 = 360 / 59.0
-
-        if self.odd_raw_latitude != 0:
-            latr = self.odd_raw_latitude
-        elif self.even_raw_latitude != 0:
-            latr = self.even_raw_latitude
-        else:
-            latr = self.cfg_latitude
-
-        if self.odd_raw_longitude != 0:
-            longr = self.odd_raw_longitude
-        elif self.even_raw_longitude != 0:
-            longr = self.even_raw_longitude
-        else:
-            longr = self.cfg_longitude
-
-        tmp1 = math.floor(latr / air_dlat_1)
-        tmp2 = (int(latr) % int(air_dlat_1))
-        j = int(tmp1 + math.trunc(0.5 + tmp2 / air_dlat_1 - self.odd_raw_latitude / 131072.0))
-        rlat = air_dlat_1 * (j + self.odd_raw_latitude / 131072.0)
-        if rlat >= 270:
-            rlat -= 360
-
-        if rlat < -90 or rlat > 90:
-            return
-
-        if abs(rlat - latr) > (air_dlat_1 / 2):
-            return
-
-        air_dlon = 360 / max(CPR_NL(rlat) - 1, 1)
-        m = int(math.floor(longr / air_dlon)
-                + math.trunc(0.5 + (int(longr) % int(air_dlon)) / air_dlon - self.odd_raw_longitude / 131072.0))
-        rlon = air_dlon * (m + self.odd_raw_longitude / 131072.0)
-        if rlon > 180:
-            rlon -= 360
-
-        self.data['latitude'] = str(round(rlat, 3)) if rlat != 0.0 else ""
-        self.data['longitude'] = str(round(rlon, 3)) if rlon != 0.0 else ""
-        self.even_pos = False
-        self.odd_pos = False
-        self.even_then_odd_order = False
-
-        return
 
     def parse(self, obj):
         """
@@ -501,7 +473,8 @@ class Squitter(basic.ADSB):
 
         if self.TC_ID_CAT_D_1 <= self.type_code <= self.TC_ID_CAT_A_4:
             self['call_sign'] = callsign(hex(self.msg)[2:-1])
-        elif self.type_code == self.TC_AIRBORNE_VELOCITY_19:
+
+        if self.type_code == self.TC_AIRBORNE_VELOCITY_19:
             if 1 <= sub_type <= 4:
                 self.vertical_rate = self._get_vertical_rate()
             if 1 <= sub_type <= 2:
@@ -545,29 +518,9 @@ class Squitter(basic.ADSB):
                 if self._get_msg_byte(5) & 0x04:
                     self['heading'] = str(((((self._get_msg_byte(5) & 0x03) << 8) | self._get_msg_byte(6)) * 45) >> 7)
 
-        elif self.TC_SURFACE_POS_5 <= self.type_code <= self.TC_AIRBORNE_POS_22:
-            odd = True if (self._get_msg_byte(6) & 0x04) else False
-
-            if odd:
-                self.odd_pos = True
-                if self.even_pos:
-                    self.even_then_odd_order = True
-            else:
-                self.even_pos = True
-
-            lat = ((self._get_msg_byte(6) & 0x03) << 15) | (self._get_msg_byte(7) << 7) | (self._get_msg_byte(8) >> 1)
-            lon = ((self._get_msg_byte(8) & 0x01) << 16) | (self._get_msg_byte(9) << 8) | (self._get_msg_byte(10))
-            if odd:
-                self.odd_raw_latitude = lat
-                self.odd_raw_longitude = lon
-            else:
-                self.even_raw_latitude = lat
-                self.even_raw_longitude = lon
-
-            if self.TC_AIRBORNE_POS_9 <= self.type_code <= self.TC_AIRBORNE_POS_18:
-                self['altitude'] = str(self._get_altitude())
-                self.on_ground = False
-            elif self.TC_AIRBORNE_POS_20 <= self.type_code <= self.TC_AIRBORNE_POS_22:
+        if self.TC_SURFACE_POS_5 <= self.type_code <= self.TC_AIRBORNE_POS_22:
+            if (self.TC_AIRBORNE_POS_9 <= self.type_code <= self.TC_AIRBORNE_POS_18) \
+                    or (self.TC_AIRBORNE_POS_20 <= self.type_code <= self.TC_AIRBORNE_POS_22):
                 self['altitude'] = str(self._get_altitude())
                 self.on_ground = False
             elif self.TC_SURFACE_POS_5 <= self.type_code <= self.TC_SURFACE_POS_8:
@@ -575,13 +528,33 @@ class Squitter(basic.ADSB):
                 self['heading'] = str(self._get_heading())
                 self.on_ground = True
 
-        elif self.type_code == self.TC_RESERVED_TEST_23:
+            if (self.TC_AIRBORNE_POS_9 <= self.type_code <= self.TC_AIRBORNE_POS_18) \
+                    or (self.TC_AIRBORNE_POS_20 <= self.type_code <= self.TC_AIRBORNE_POS_22):
+                odd = True if (self._get_msg_byte(6) & 0x04) != 0 else False
+
+                lat = ((self._get_msg_byte(6) & 0x03) << 15) | \
+                      (self._get_msg_byte(7) << 7) | \
+                      (self._get_msg_byte(8) >> 1)
+                lon = ((self._get_msg_byte(8) & 0x01) << 16) | \
+                      (self._get_msg_byte(9) << 8) | \
+                      (self._get_msg_byte(10))
+
+                if odd:
+                    self.odd_time = time.time()
+                    self.odd_raw_latitude = lat
+                    self.odd_raw_longitude = lon
+                else:
+                    self.even_time = time.time()
+                    self.even_raw_latitude = lat
+                    self.even_raw_longitude = lon
+
+        if self.type_code == self.TC_RESERVED_TEST_23:
             if sub_type == 7:
                 id_13 = (((self._get_msg_byte(5) << 8) | self._get_msg_byte(6)) & 0xFFF1) >> 3
                 if id_13 != 0:
                     self['squawk'] = str("{:=04X}".format(parse_id13(id_13)))
 
-        elif self.type_code == self.TC_EXT_SQ_AIRCRFT_STATUS_28:
+        if self.type_code == self.TC_EXT_SQ_AIRCRFT_STATUS_28:
             if sub_type == 1:
                 id_13 = ((self._get_msg_byte(5) << 8) | self._get_msg_byte(6)) & 0x1FFF
                 if id_13 != 0:

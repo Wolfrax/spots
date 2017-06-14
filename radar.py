@@ -240,11 +240,8 @@ class Radar(basic.ADSB, threading.Thread):
         else:
             self.blips[icao] = {'msg': msg, 'timestamp': time.time(), 'count': 1}
 
-        # Note, we need to decode for latitude/longitude after we have updated the message as the algorithm
-        # is dependent on 2 frames; odd and even
-        if not self.blips[icao]['msg'].decodeCPR():
-            pass  # decodeCPR_relative is not validated yet and will likely yield wrong values
-            # self.blips[icao]['msg'].decodeCPR_relative()
+        if not self.blips[icao]['msg'].decodeCPR_relative():
+            self.blips[icao]['msg'].decodeCPR()
 
         self.lock.release()
         if self.cfg_verbose_logging:
