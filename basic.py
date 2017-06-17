@@ -623,8 +623,12 @@ class Stats:
             'df_29': 0,
             'df_30': 0,
             'df_31': 0,
-            'df_total': 0
+            'df_total': 0,
+            'no_unique_icao': 0,
+            'flights': 0
             }
+    icao_list = []
+    flight_list = {}
 
     def __init__(self):
         self['spots_version'] = ADSB.VERSION
@@ -638,22 +642,63 @@ class Stats:
     def __getitem__(self, item):
         return self.data[item]
 
+    def add_icao(self, icao_address):
+        if icao_address not in self.icao_list:
+            self.icao_list.append(icao_address)
+            self['no_unique_icao'] = len(self.icao_list)
+
+    def add_flight(self, call_sign):
+        if call_sign in self.flight_list:
+            self.flight_list[call_sign] += 1
+        else:
+            self.flight_list[call_sign] = 0
+        self['flights'] = len(self.flight_list)
+
     def __str__(self):
         st = "\n"
         st += "Preambles:{}\n".format(self['valid_preambles'])
         st += "Valid CRC:{}\n".format(self['valid_crc'])
         st += "Non valid CRC:{}\n".format(self['not_valid_crc'])
         st += "Decoded messages: "
+        st += "\n"
         st += "DF0: {} ".format(self['df_0'])
+        st += "DF1: {} ".format(self['df_1'])
+        st += "DF2: {} ".format(self['df_2'])
+        st += "DF3: {} ".format(self['df_3'])
         st += "DF4: {} ".format(self['df_4'])
         st += "DF5: {} ".format(self['df_5'])
+        st += "DF6: {} ".format(self['df_6'])
+        st += "DF7: {} ".format(self['df_7'])
+        st += "DF8: {} ".format(self['df_8'])
+        st += "DF9: {} ".format(self['df_9'])
+        st += "DF10: {} ".format(self['df_10'])
         st += "DF11: {} ".format(self['df_11'])
+        st += "DF12: {} ".format(self['df_12'])
+        st += "DF13: {} ".format(self['df_13'])
+        st += "DF14: {} ".format(self['df_14'])
+        st += "DF15: {} ".format(self['df_15'])
         st += "DF16: {} ".format(self['df_16'])
         st += "DF17: {} ".format(self['df_17'])
         st += "DF18: {} ".format(self['df_18'])
+        st += "DF18: {} ".format(self['df_19'])
         st += "DF20: {} ".format(self['df_20'])
         st += "DF21: {} ".format(self['df_21'])
+        st += "DF22: {} ".format(self['df_22'])
+        st += "DF23: {} ".format(self['df_23'])
+        st += "DF24: {} ".format(self['df_24'])
+        st += "DF25: {} ".format(self['df_25'])
+        st += "DF26: {} ".format(self['df_26'])
+        st += "DF27: {} ".format(self['df_27'])
+        st += "DF28: {} ".format(self['df_28'])
+        st += "DF29: {} ".format(self['df_29'])
+        st += "DF30: {} ".format(self['df_30'])
+        st += "DF31: {} ".format(self['df_31'])
+        st += "\n"
         st += "DF Total: {} ".format(self['df_total'])
+        st += "\n"
+        st += "No of unique icao: {} ".format(self['no_unique_icao'])
+        st += "\n"
+        st += "No of flights: {}".format(self['flights'])
 
         return st
 

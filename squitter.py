@@ -291,7 +291,7 @@ class Squitter(basic.ADSB):
         return (self.msg >> (self.no_of_bits - (byte_nr + 1) * 8)) & 0xFF
 
     def decodeCPR_relative(self):
-        # Basic algorithms
+        # Basic algorithm
         #   https://adsb-decode-guide.readthedocs.io/en/latest/content/airborne-position.html
 
         if self.odd_time == 0 and self.even_time == 0:
@@ -473,6 +473,7 @@ class Squitter(basic.ADSB):
 
         if self.TC_ID_CAT_D_1 <= self.type_code <= self.TC_ID_CAT_A_4:
             self['call_sign'] = callsign(hex(self.msg)[2:-1])
+            basic.statistics.add_flight(self['call_sign'])
 
         if self.type_code == self.TC_AIRBORNE_VELOCITY_19:
             if 1 <= sub_type <= 4:
@@ -567,6 +568,7 @@ class Squitter(basic.ADSB):
     def decode_comm_bds_reply_msg(self):
         if self._get_msg_byte(4) == 0x20:
             self['call_sign'] = callsign(hex(self.msg)[2:-1])
+            basic.statistics.add_flight(self['call_sign'])
 
     def decode_altitude_msg(self):
         ac_13 = ((self._get_msg_byte(2) << 8) | self._get_msg_byte(3)) & 0x1FFF
@@ -660,10 +662,13 @@ class Squitter(basic.ADSB):
             self['ICAO24'] = hex(((self._get_msg_byte(1) << 16)
                                   | (self._get_msg_byte(2) << 8)
                                   | self._get_msg_byte(3)))[2:].rstrip('L')
+            basic.statistics.add_icao(self['ICAO24'])
+
         self.capability = self._get_msg_byte(0) & 0x07
         self.type_code = self._get_msg_byte(4) >> 3
         self.emitter_category = self._get_msg_byte(4) & 0x07
         self.parity = self.msg & 0xFFFFFF
+
         if self['downlink_format'] == self.DF_SHORT_AIR2AIR_SURVEILLANCE_0:
             self.decode_altitude_msg()
         elif self['downlink_format'] == self.DF_SURVEILLANCE_ALTITUDE_REPLY_4:

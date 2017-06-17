@@ -79,7 +79,8 @@
     <div class="col-sm-2">
         <div id="graphPreamble" style="width:150px"></div>
     </div>
-    <div id="footer">Mats Melander (c)</div>
+    <div class="col_sm-12" id="summary"></div>
+    <div class="col_sm-12" id="footer">Mats Melander (c)</div>
 
     <script type="text/javascript">
         function Spots() {
@@ -162,6 +163,12 @@
                 stats.push({y: series['df_31'], color: '#FF0000' });  //
 
                 Plot.statistics(stats);
+
+                var i = document.getElementById('summary');
+                var html = 'Total messages: ' + series['df_total'] + ' ';
+                html += 'Unique ICAO: ' + series['no_unique_icao'] + ' ';
+                html += 'No of flights: ' + series['flights'] + '<br>';
+                i.innerHTML = html;
             }
 
             function SignalCache(series) {
