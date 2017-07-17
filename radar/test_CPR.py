@@ -1,7 +1,4 @@
-import basic
-import math
 import squitter
-import time
 
 
 def main():

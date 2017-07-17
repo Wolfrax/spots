@@ -1,0 +1,22 @@
+An implementation to detect and decode Mode-S messages modulated on 1090MHz.
+
+The implementation is implemented fully in Python (2.7.9), tested on raspberry pi 2 model B hardware
+using an RTL-SDR USB dongle. Focus is on using Python idioms and readability, not optimizations.
+
+The following message will be decoded:
+
+* Short air-to-air surveillance (Downlink format: 0)
+* Surveillance altitude reply (Downlink format: 4)
+* Surveillande identity reply (Downlink format: 5)
+* Long air-to-air surveillance (Downlink format: 16)
+* ADS-B, Extended Squitter (Downlink format:17)
+* Comm BDS altitude reply (Downlink format: 20)
+* Comm BDS identity reply (Downlink format: 21)
+
+Messages decoded are displayed either in a serialised format on standard output
+or in a tabular format depending on preference. An inbuilt server is listening on port 5051 (configurable) and
+enables a client to access decoded messages in json format.
+
+Some statistics is collected, this data is also accessible through the server
+
+To execute, simply try $ python radar.py

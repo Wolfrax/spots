@@ -1,6 +1,8 @@
 import threading
 import json
 import time
+import __init__ as init
+
 
 __author__ = 'Wolfrax'
 
@@ -38,7 +40,7 @@ class ADSB:
     This class defines fundamental constants and is not supposed to be instantiated
     """
 
-    VERSION = "2.1"
+    VERSION = init.__version__
 
     # basic constants
     MODES_SIGMIN = 0
