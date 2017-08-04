@@ -16,7 +16,7 @@
       </profile-state>
     </entry>
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 2.7.9 (ssh://pi@rpi2.local:22/home/pi/.virtualenvs/spots/bin/python)" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="Remote Python 2.7.9 (ssh://pi@rpi3.local:22/home/pi/.virtualenvs/spots/bin/python)" project-jdk-type="Python SDK" />
   <component name="PythonCompatibilityInspectionAdvertiser">
     <option name="version" value="2" />
   </component>

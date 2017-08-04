@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
+from .radar import __version__
 
 with open('README') as f:
     long_description = f.read()
 
 setup(
     name='spots',
-    version='2.1',
+    version=__version__,
     packages=find_packages(),
     data_files=[('', ['adsb-packet.png', 'spots.png', 'LICENSE.txt', 'README.md', 'README']),
                 ('client', ['map.html', 'spots.html', 'spots.js']),

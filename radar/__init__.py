@@ -1,6 +1,7 @@
 from pkg_resources import get_distribution, DistributionNotFound
 import os.path
 
+VERSION = "2.1"
 
 try:
     _dist = get_distribution('spots')
@@ -9,6 +10,6 @@ try:
     if not here.startswith(os.path.join(dist_loc, 'spots')):
         raise DistributionNotFound
 except DistributionNotFound:
-    __version__ = "Please install this project with setup.py"
+    __version__ = VERSION
 else:
     __version__ = _dist.version
