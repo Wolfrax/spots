@@ -11,7 +11,7 @@ setup(
     data_files=[('', ['adsb-packet.png', 'spots.png', 'LICENSE.txt', 'README.md', 'README']),
                 ('client', ['map.html', 'spots.html', 'spots.js']),
                 ('radar', ['modes1.bin', 'radar.conf', 'spots_config.json', 'spots_emitter.conf', 'squitter.json'])],
-    install_requires=['docutils>=0.3', 'Flask', 'pyrtlsdr'],
+    install_requires=['docutils>=0.3', 'Flask', 'pyrtlsdr', 'simplejson'],
     url='https://github.com/Wolfrax/spots',
     license='GPL',
     author='Mats Melander',

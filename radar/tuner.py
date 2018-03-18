@@ -6,6 +6,7 @@ import struct
 import threading
 import rtlsdr
 import time
+import signal
 
 __author__ = 'Wolfrax'
 
@@ -149,7 +150,13 @@ class Tuner(basic.ADSB, threading.Thread):
 
         self.logger.info(str(basic.statistics))
 
+    def exit_terminate(self, signum, frame):
+        self.logger.info("Caught SIGTERM")
+        self.die()
+
     def read(self, cb_func):
+        signal.signal(signal.SIGTERM, self.exit_terminate)
+
         self._cb_func = cb_func
         try:
             while not self.finished.is_set():

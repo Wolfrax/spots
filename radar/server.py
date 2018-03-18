@@ -12,6 +12,7 @@ This implements server functionality for spots, enabling clients to access spots
 The Spots server implements a threaded server, one thread per request. The requests follow a simple protocol
     "GET DATA STR": message from the client will return the radar blip messages in serialized/json format
     "GET STATISTICS STR": message from the client will return spots statistics in serialized/json format
+    "GET FLIGHT_DB STR": message from the client will return spots flight database in serialized/json format
 """
 
 
@@ -23,6 +24,8 @@ class TCPRequestHandler(SocketServer.BaseRequestHandler):
             response = self.server.radar.get_blips_serialized()
         elif cmd == "GET STATISTICS STR":
             response = self.server.radar.get_statistics()
+        elif cmd == "GET FLIGHT_DB STR":
+            response = self.server.radar.get_flight_db()
         else:
             return
 

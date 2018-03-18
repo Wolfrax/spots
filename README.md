@@ -118,6 +118,7 @@ Configuration for spots is in `spots_config.json`. Follows json syntax with no e
 * log backup count (integer): How many roted log files to keep
 * spots server address (localhost or ip-address): the address for the server
 * spots server port (5051): the server port
+* flight db name (string): name of databse file to store flight counts
 
 ## Client/Server
 

@@ -54,6 +54,11 @@ def spots_statistics():
     return app.response_class(get_msg("GET STATISTICS STR"), content_type='application/json')
 
 
+@app.route("/spots/flight_db")
+def spots_flight_db():
+    return app.response_class(get_msg("GET FLIGHT_DB STR"), content_type='application/json')
+
+
 if __name__ == "__main__":
     print "Will listen on {}:{}".format(cfg_server_address, cfg_server_port)
     app.run(host='0.0.0.0', debug=True)

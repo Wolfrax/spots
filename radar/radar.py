@@ -9,7 +9,9 @@ import logging.handlers
 import time
 import sys
 import server
-
+import operator
+import os
+import simplejson
 
 __author__ = 'Wolfrax'
 
@@ -46,6 +48,11 @@ The blip dictionary have the following format
     'msg' is the decoded Squitter object
 
 The blip dictionary is in turn read recurrently by a separate thread for display.
+
+To collect some (rather pointless) statistics using call signs counts a smple FlightDB class exists.
+Call sign statistics is stored into a json structure which is stored recurrently on file (file name is configurable).
+A simple tool to dump the content of the file exists (flight_db_tool.py), A client can ask for this information using
+"GET FLIGHT_DB STR" (implemented in server.py).
 """
 
 
@@ -139,6 +146,44 @@ class TextDisplay:
         curses.endwin()
 
 
+class FlightDB:
+    """
+    The FlightDB class is a simple persistent storage of flight data.
+
+    It stores data int a json file and sends the flights to the client
+    """
+
+    def __init__(self, loc):
+        location = os.path.expanduser(loc)
+        self.loc = loc
+        if os.path.exists(location):
+            self.db = simplejson.load(open(self.loc, 'rb'))
+        else:
+            self.db = {'version': basic.ADSB.VERSION,
+                       'start_date': basic.statistics['start_time_string'],
+                       'total_cnt': 0,
+                       'flights': {}}
+
+    def add(self, flight):
+        if flight in self.db['flights']:
+            self.db['flights'][flight] += 1
+        else:
+            self.db['flights'][flight] = 1
+        self.db['total_cnt'] += 1
+
+    def get_head(self):
+        return {k: v for k, v in self.db.iteritems() if k in ('version', 'start_date', 'total_cnt')}
+
+    def get_flights(self):
+        # Return a sorted dictionary of flights, descending order
+        # See https://stackoverflow.com/questions/613183/how-do-i-sort-a-dictionary-by-value
+        return {'flights': sorted(self.db['flights'].items(), key=operator.itemgetter(1), reverse=True)}
+
+    def dump(self):
+        with open(self.loc, 'wt') as f:
+            simplejson.dump(self.db, f, indent=4*' ')
+
+
 class Radar(basic.ADSB, threading.Thread):
     """
     The Radar class is where squitter messages are stored and processed.
@@ -167,13 +212,25 @@ class Radar(basic.ADSB, threading.Thread):
 
         self.daemon = True  # This is a daemon thread
         self.logger = logging.getLogger('spots.Radar')
+
+        # We create a simple persistent storage for counting of flights
+        self.flight_db = FlightDB(basic.ADSB.cfg_flight_db_name)
+        self.flight_db.dump()
+
         self.blip_timer = basic.RepeatTimer(1, self._scan_blips, "Radar blip timer")
         self.stat_timer = basic.RepeatTimer(3600, self._show_stats, "Radar stat timer")
         self.blip_timer.start()
         self.stat_timer.start()
 
     def _show_stats(self):
+        # Save to persistent storage, flights and statistics
+        self.flight_db.dump()
         self.logger.info(str(basic.statistics))
+
+    def get_flight_db(self):
+        fl = self.flight_db.get_head()
+        fl.update(self.flight_db.get_flights())
+        return fl
 
     @staticmethod
     def get_statistics():
@@ -244,6 +301,9 @@ class Radar(basic.ADSB, threading.Thread):
         if not self.blips[icao]['msg'].decodeCPR_relative():
             self.blips[icao]['msg'].decodeCPR()
 
+        if msg['call_sign'] != "":
+            self.flight_db.add(msg['call_sign'])
+
         self.lock.release()
         if self.cfg_verbose_logging:
             self.logger.info("{}".format(str(msg)))
@@ -297,6 +357,7 @@ class Radar(basic.ADSB, threading.Thread):
     def _die(self):
         self.logger.info("Radar dying")
 
+        self.flight_db.dump()
         self.finished.set()
         self.blip_timer.cancel()
         self.stat_timer.cancel()

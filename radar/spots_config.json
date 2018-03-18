@@ -15,5 +15,6 @@
   "log max bytes": 1048576,
   "log backup count": 10,
   "spots server address": "",
-  "spots server port": 5051
+  "spots server port": 5051,
+  "flight db name": "spots_flight_db.json"
 }

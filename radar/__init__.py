@@ -1,7 +1,7 @@
 from pkg_resources import get_distribution, DistributionNotFound
 import os.path
 
-VERSION = "2.1"
+VERSION = "2.2"
 
 try:
     _dist = get_distribution('spots')

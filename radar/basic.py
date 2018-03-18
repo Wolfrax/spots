@@ -191,6 +191,7 @@ class ADSB:
     cfg_log_backup_count = config["log backup count"]
     cfg_server_address = config["spots server address"]
     cfg_server_port = config["spots server port"]
+    cfg_flight_db_name = config["flight db name"]
 
     def __init__(self):
         pass
