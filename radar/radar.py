@@ -12,6 +12,7 @@ import server
 import operator
 import os
 import simplejson
+import shutil
 
 __author__ = 'Wolfrax'
 
@@ -51,7 +52,10 @@ The blip dictionary is in turn read recurrently by a separate thread for display
 
 To collect some (rather pointless) statistics using call signs counts a smple FlightDB class exists.
 Call sign statistics is stored into a json structure which is stored recurrently on file (file name is configurable in 
-the config file, if "flight db name" is "" this function is not used).
+the config file, if "flight db name" is "" this function is not used). The database is dumped to file ever 10 min,
+before dumping the current file is copied to a backup-file. The backup file is used when the radar is re-staring 
+and we get an exception trying to read the current database file (the file is probably corrupt).
+
 A simple tool to dump the content of the file exists (flight_db_tool.py), A client can ask for this information using
 "GET FLIGHT_DB STR" (implemented in server.py).
 """
@@ -157,6 +161,7 @@ class FlightDB:
     def __init__(self, loc):
         location = os.path.expanduser(loc)
         self.loc = loc
+        self.loc_bck = self.loc + ".1"
         init_db = {'version': basic.ADSB.VERSION,
                    'start_date': basic.statistics['start_time_string'],
                    'total_cnt': 0,
@@ -166,7 +171,12 @@ class FlightDB:
             try:
                 self.db = simplejson.load(open(self.loc, 'rb'))
             except simplejson.JSONDecodeError:
-                self.db = init_db
+                try:
+                    # Current file is corrupt, try to fallback to backup file
+                    self.db = simplejson.load(open(self.loc_bck, 'rb'))
+                except simplejson.JSONDecodeError:
+                    # No joy, give up and re-initialize
+                    self.db = init_db
         else:
             self.db = init_db
         self.dump()
@@ -187,6 +197,7 @@ class FlightDB:
         return {'flights': sorted(self.db['flights'].items(), key=operator.itemgetter(1), reverse=True)}
 
     def dump(self):
+        shutil.copy2(self.loc, self.loc_bck)  # Make a backup
         with open(self.loc, 'wt') as f:
             simplejson.dump(self.db, f, skipkeys=True, indent=4*' ')
 
