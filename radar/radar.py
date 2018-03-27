@@ -225,7 +225,7 @@ class Radar(basic.ADSB, threading.Thread):
             self.flight_db = FlightDB(basic.ADSB.cfg_flight_db_name)
             self.flight_db.dump()
             self.flight_timer = basic.RepeatTimer(10 * 60, self._dump_flight_db, "Radar flight DB timer")
-            self.flight_timer.sart()
+            self.flight_timer.start()
 
         self.blip_timer = basic.RepeatTimer(1, self._scan_blips, "Radar blip timer")
         self.stat_timer = basic.RepeatTimer(3600, self._show_stats, "Radar stat timer")
