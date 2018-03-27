@@ -50,7 +50,8 @@ The blip dictionary have the following format
 The blip dictionary is in turn read recurrently by a separate thread for display.
 
 To collect some (rather pointless) statistics using call signs counts a smple FlightDB class exists.
-Call sign statistics is stored into a json structure which is stored recurrently on file (file name is configurable).
+Call sign statistics is stored into a json structure which is stored recurrently on file (file name is configurable in 
+the config file, if "flight db name" is "" this function is not used).
 A simple tool to dump the content of the file exists (flight_db_tool.py), A client can ask for this information using
 "GET FLIGHT_DB STR" (implemented in server.py).
 """
@@ -156,13 +157,19 @@ class FlightDB:
     def __init__(self, loc):
         location = os.path.expanduser(loc)
         self.loc = loc
+        init_db = {'version': basic.ADSB.VERSION,
+                   'start_date': basic.statistics['start_time_string'],
+                   'total_cnt': 0,
+                   'flights': {}}
+
         if os.path.exists(location):
-            self.db = simplejson.load(open(self.loc, 'rb'))
+            try:
+                self.db = simplejson.load(open(self.loc, 'rb'))
+            except simplejson.JSONDecodeError:
+                self.db = init_db
         else:
-            self.db = {'version': basic.ADSB.VERSION,
-                       'start_date': basic.statistics['start_time_string'],
-                       'total_cnt': 0,
-                       'flights': {}}
+            self.db = init_db
+        self.dump()
 
     def add(self, flight):
         if flight in self.db['flights']:
@@ -181,7 +188,7 @@ class FlightDB:
 
     def dump(self):
         with open(self.loc, 'wt') as f:
-            simplejson.dump(self.db, f, indent=4*' ')
+            simplejson.dump(self.db, f, skipkeys=True, indent=4*' ')
 
 
 class Radar(basic.ADSB, threading.Thread):
@@ -213,23 +220,33 @@ class Radar(basic.ADSB, threading.Thread):
         self.daemon = True  # This is a daemon thread
         self.logger = logging.getLogger('spots.Radar')
 
-        # We create a simple persistent storage for counting of flights
-        self.flight_db = FlightDB(basic.ADSB.cfg_flight_db_name)
-        self.flight_db.dump()
+        if basic.ADSB.cfg_use_flight_db:
+            # We create a simple persistent storage for counting of flights
+            self.flight_db = FlightDB(basic.ADSB.cfg_flight_db_name)
+            self.flight_db.dump()
+            self.flight_timer = basic.RepeatTimer(10 * 60, self._dump_flight_db, "Radar flight DB timer")
 
         self.blip_timer = basic.RepeatTimer(1, self._scan_blips, "Radar blip timer")
         self.stat_timer = basic.RepeatTimer(3600, self._show_stats, "Radar stat timer")
         self.blip_timer.start()
         self.stat_timer.start()
 
+    def _dump_flight_db(self):
+        if basic.ADSB.cfg_use_flight_db:
+            # Save to persistent storage, flights and statistics
+            self.logger.info("Dumping DB to file")
+            self.flight_db.dump()
+
     def _show_stats(self):
-        # Save to persistent storage, flights and statistics
-        self.flight_db.dump()
+        self.logger.info("Dumping statistics to file")
         self.logger.info(str(basic.statistics))
 
     def get_flight_db(self):
-        fl = self.flight_db.get_head()
-        fl.update(self.flight_db.get_flights())
+        if basic.ADSB.cfg_use_flight_db:
+            fl = self.flight_db.get_head()
+            fl.update(self.flight_db.get_flights())
+        else:
+            fl = {}
         return fl
 
     @staticmethod
@@ -301,7 +318,7 @@ class Radar(basic.ADSB, threading.Thread):
         if not self.blips[icao]['msg'].decodeCPR_relative():
             self.blips[icao]['msg'].decodeCPR()
 
-        if msg['call_sign'] != "":
+        if basic.ADSB.cfg_use_flight_db and msg['call_sign'] != "":
             self.flight_db.add(msg['call_sign'])
 
         self.lock.release()
@@ -357,7 +374,9 @@ class Radar(basic.ADSB, threading.Thread):
     def _die(self):
         self.logger.info("Radar dying")
 
-        self.flight_db.dump()
+        if basic.ADSB.cfg_use_flight_db:
+            self.flight_db.dump()
+            self.flight_timer.cancel()
         self.finished.set()
         self.blip_timer.cancel()
         self.stat_timer.cancel()
@@ -389,7 +408,7 @@ def run_Radar():
                                               mode='w',
                                               maxBytes=basic.ADSB.cfg_log_max_bytes,
                                               backupCount=basic.ADSB.cfg_log_backup_count)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - (%(threadName)-10s) - %(message)s')
     fh.setFormatter(formatter)
     logger.addHandler(fh)
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="On explicit save action" serverName="rpi2">
+  <component name="PublishConfigData" overwriteAll="false">
     <serverData>
       <paths name="rpi1">
         <serverdata>
@@ -10,7 +10,7 @@
           </mappings>
         </serverdata>
       </paths>
-      <paths name="rpi2">
+      <paths name="rpi3">
         <serverdata>
           <mappings>
             <mapping deploy="/app/spots" local="$PROJECT_DIR$" web="/" />
@@ -20,6 +20,5 @@
         </serverdata>
       </paths>
     </serverData>
-    <option name="myAutoUpload" value="ON_EXPLICIT_SAVE" />
   </component>
 </project>

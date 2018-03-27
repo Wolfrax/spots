@@ -192,6 +192,7 @@ class ADSB:
     cfg_server_address = config["spots server address"]
     cfg_server_port = config["spots server port"]
     cfg_flight_db_name = config["flight db name"]
+    cfg_use_flight_db = True if cfg_flight_db_name != "" else False
 
     def __init__(self):
         pass
