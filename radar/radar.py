@@ -159,6 +159,9 @@ class FlightDB:
     """
 
     def __init__(self, loc):
+        self.logger = logging.getLogger('spots.FlightDB')
+        self.lock = threading.Lock()
+
         location = os.path.expanduser(loc)
         self.loc = loc
         self.loc_bck = self.loc + ".1"
@@ -172,9 +175,11 @@ class FlightDB:
                 self.db = simplejson.load(open(self.loc, 'rb'))
             except simplejson.JSONDecodeError:
                 try:
+                    self.logger.info("Init, DB file corrupt, using backup")
                     # Current file is corrupt, try to fallback to backup file
                     self.db = simplejson.load(open(self.loc_bck, 'rb'))
                 except simplejson.JSONDecodeError:
+                    self.logger.info("Init, DB file and backup corrupt, need to reinitialize")
                     # No joy, give up and re-initialize
                     self.db = init_db
         else:
@@ -182,24 +187,34 @@ class FlightDB:
         self.dump()
 
     def add(self, flight):
+        self.lock.acquire()
         if flight in self.db['flights']:
             self.db['flights'][flight] += 1
         else:
             self.db['flights'][flight] = 1
         self.db['total_cnt'] += 1
+        self.lock.release()
 
     def get_head(self):
-        return {k: v for k, v in self.db.iteritems() if k in ('version', 'start_date', 'total_cnt')}
+        self.lock.acquire()
+        res = {k: v for k, v in self.db.iteritems() if k in ('version', 'start_date', 'total_cnt')}
+        self.lock.release()
+        return res
 
     def get_flights(self):
         # Return a sorted dictionary of flights, descending order
         # See https://stackoverflow.com/questions/613183/how-do-i-sort-a-dictionary-by-value
-        return {'flights': sorted(self.db['flights'].items(), key=operator.itemgetter(1), reverse=True)}
+        self.lock.acquire()
+        res = {'flights': sorted(self.db['flights'].items(), key=operator.itemgetter(1), reverse=True)}
+        self.lock.release()
+        return res
 
     def dump(self):
         shutil.copy2(self.loc, self.loc_bck)  # Make a backup
+        self.lock.acquire()
         with open(self.loc, 'wt') as f:
             simplejson.dump(self.db, f, skipkeys=True, indent=4*' ')
+        self.lock.release()
 
 
 class Radar(basic.ADSB, threading.Thread):
@@ -387,7 +402,7 @@ class Radar(basic.ADSB, threading.Thread):
         self.logger.info("Radar dying")
 
         if basic.ADSB.cfg_use_flight_db:
-            self.flight_db.dump()
+            self._dump_flight_db()
             self.flight_timer.cancel()
         self.finished.set()
         self.blip_timer.cancel()
