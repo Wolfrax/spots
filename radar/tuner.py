@@ -119,8 +119,12 @@ class Tuner(basic.ADSB, threading.Thread):
             # The read_samples_async is a blocking function from where the callback function is called,
             # cancel_read_async needs to be called to return from read_samples_async.
 
-            # self.sdr.read_samples_async(self._sdr_cb, num_samples=self.MODES_DATA_LEN)
-            self.sdr.read_bytes_async(self._sdr_cb, num_bytes=self.MODES_DATA_LEN)
+            try:
+                # self.sdr.read_samples_async(self._sdr_cb, num_samples=self.MODES_DATA_LEN)
+                self.sdr.read_bytes_async(self._sdr_cb, num_bytes=self.MODES_DATA_LEN)
+            except IOError as msg:
+                self.logger.error("Tuner caught rtlsdr error reading async {}".format(msg))
+                self.die()
         else:
             self._sdr_cb(self.sig, None)
 
@@ -163,6 +167,7 @@ class Tuner(basic.ADSB, threading.Thread):
                 try:
                     msgs = self.data.get(timeout=1.0)  # Timeout after 1 sec to ensure we are not blocked forever
                 except Queue.Empty:
+                    self.logger.info("read - Queue empty, timeout")
                     continue  # So we got a timeout from the Queue, continue to execute
 
                 self._cb_func(msgs)

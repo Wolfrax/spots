@@ -2,6 +2,7 @@
 
 from flask import Flask
 import socket
+import datetime
 
 
 __author__ = 'Wolfrax'
@@ -16,14 +17,14 @@ def get_msg(message):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     except socket.error as msg:
-        print "Sock err (1): {}".format(msg)
+        print "{} Sock err (1): {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), msg)
         sock = None
         return None
 
     try:
         sock.connect((cfg_server_address, cfg_server_port))
     except socket.error as msg:
-        print "Sock err (2): {}".format(msg)
+        print "{} Sock err (2): {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), msg)
         sock = None
         return None
 
@@ -38,7 +39,7 @@ def get_msg(message):
                 data.append(stream)
         data = ''.join(data)
     except socket.error as msg:
-        print "Sock err (3): {}".format(msg)
+        print "{} Sock err (3): {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), msg)
     finally:
         sock.close()
         return data
