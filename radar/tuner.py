@@ -167,7 +167,6 @@ class Tuner(basic.ADSB, threading.Thread):
                 try:
                     msgs = self.data.get(timeout=1.0)  # Timeout after 1 sec to ensure we are not blocked forever
                 except Queue.Empty:
-                    self.logger.info("read - Queue empty, timeout")
                     continue  # So we got a timeout from the Queue, continue to execute
 
                 self._cb_func(msgs)
