@@ -47,6 +47,7 @@ class Tuner(basic.ADSB, threading.Thread):
 
         self.logger.info("Tuner initializing")
 
+        self.sdr_async_ts = 0.0
         if filename is None:
             self.sdr = rtlsdr.RtlSdr()
             self.sdr.DEFAULT_ASYNC_BUF_NUMBER = self.MODES_ASYNC_BUF_NUMBER
@@ -54,6 +55,7 @@ class Tuner(basic.ADSB, threading.Thread):
             self.sdr.sample_rate = sr
             self.sdr.center_freq = cf
             self.sdr.gain = max(self.sdr.get_gains()) if gain == 'max' else gain
+            self.original_gain = gain
             self.sdr.set_agc_mode(0)
             self.logger.info("Tuner initialised to gain {}".format(self.sdr.gain))
 
@@ -121,10 +123,21 @@ class Tuner(basic.ADSB, threading.Thread):
 
             try:
                 # self.sdr.read_samples_async(self._sdr_cb, num_samples=self.MODES_DATA_LEN)
+                self.sdr_async_ts = time.time()
                 self.sdr.read_bytes_async(self._sdr_cb, num_bytes=self.MODES_DATA_LEN)
             except IOError as msg:
                 self.logger.error("Tuner caught rtlsdr error reading async {}".format(msg))
-                self.die()
+
+                if time.time() - self.sdr_async_ts >= 1.0:
+                    self.sdr = rtlsdr.RtlSdr()
+                    self.sdr.gain = max(self.sdr.get_gains()) if self.original_gain == 'max' else self.original_gain
+                    self.sdr.set_agc_mode(0)
+                    self.logger.info("Tuner re-initialised to gain {}".format(self.sdr.gain))
+                    self.run()
+                else:
+                    # It was less than 1 sec than we tried to create a new instance of sdr, give it up
+                    self.logger.info("Tuner no luck to re-initialised...time to die")
+                    self.die()
         else:
             self._sdr_cb(self.sig, None)
 
