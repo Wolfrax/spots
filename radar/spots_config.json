@@ -16,5 +16,7 @@
   "log backup count": 10,
   "spots server address": "",
   "spots server port": 5051,
-  "flight db name": "spots_flight_db.json"
+  "flight db name": "spots_flight_db.json",
+  "config file": "/usr/etc/mm.json",
+  "email recipient": "mats.melander@gmail.com"
 }

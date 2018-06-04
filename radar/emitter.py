@@ -60,6 +60,13 @@ def spots_flight_db():
     return app.response_class(get_msg("GET FLIGHT_DB STR"), content_type='application/json')
 
 
+@app.route("/spots/logfile")
+def ws_log():
+    with open('spots.log', 'r') as f:
+        log = f.read()
+    return log
+
+
 if __name__ == "__main__":
     print "Will listen on {}:{}".format(cfg_server_address, cfg_server_port)
     app.run(host='0.0.0.0', debug=True)

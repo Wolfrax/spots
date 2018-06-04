@@ -1,6 +1,10 @@
 import threading
 import json
 import time
+import smtplib
+import os
+import simplejson
+import logging
 import __init__ as init
 
 
@@ -193,6 +197,9 @@ class ADSB:
     cfg_server_port = config["spots server port"]
     cfg_flight_db_name = config["flight db name"]
     cfg_use_flight_db = True if cfg_flight_db_name != "" else False
+    cfg_config_file = config["config file"]
+    cfg_use_email = True if cfg_config_file != "" else False
+    cfg_email_recipient = config["email recipient"]
 
     def __init__(self):
         pass
@@ -583,6 +590,47 @@ class RepeatTimer(threading.Thread):
 
     def cancel(self):
         self.finished.set()
+
+
+class EmailClient:
+    # See http://trevorappleton.blogspot.se/2014/11/sending-email-using-python.html
+    # Security settings for gmail changed to allow access by less secure apps,
+    # see https://www.google.com/settings/security/lesssecureapps
+
+    def __init__(self):
+        self.logger = logging.getLogger('spots.EmailClient')
+        self.email_session = None
+        self.email_username = None
+        self.email_pw = None
+
+        if ADSB.cfg_use_email and os.path.exists(ADSB.cfg_config_file):
+            try:
+                email_cfg = simplejson.load(open(ADSB.cfg_config_file, 'rb'))
+                self.email_session = smtplib.SMTP(email_cfg['SMTP_server'], email_cfg['SMTP_port'])
+                self.email_username = email_cfg['GMAIL_username']
+                self.email_pw = email_cfg['GMAIL_pw']
+            except simplejson.JSONDecodeError:
+                self.logger.info("Init, config file corrupt")
+
+    def send(self, recipient, subject, email_text):
+        # Check if email is configured, if not silently ignore
+        if ADSB.cfg_use_email:
+            headers = ["From: " + self.email_username,
+                       "Subject: " + subject,
+                       "To: " + recipient,
+                       "MIME-Version: 1.0",
+                       "Content-Type: text/html"]
+            headers = "\r\n".join(headers)
+            email_text = "" + email_text + ""
+
+            self.email_session.ehlo()
+            self.email_session.starttls()
+            self.email_session.ehlo()
+
+            self.email_session.login(self.email_username, self.email_pw)
+
+            self.email_session.sendmail(self.email_username, recipient, headers + "\r\n\r\n" + email_text)
+            self.email_session.quit()
 
 
 class Stats:

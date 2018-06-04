@@ -40,6 +40,8 @@ class Tuner(basic.ADSB, threading.Thread):
         threading.Thread.__init__(self, name="Tuner")
         basic.ADSB.__init__(self)
 
+        self.email = basic.EmailClient()
+
         self.finished = threading.Event()
 
         self.daemon = True
@@ -126,7 +128,9 @@ class Tuner(basic.ADSB, threading.Thread):
                 self.sdr_async_ts = time.time()
                 self.sdr.read_bytes_async(self._sdr_cb, num_bytes=self.MODES_DATA_LEN)
             except IOError as msg:
-                self.logger.error("Tuner caught rtlsdr error reading async {}".format(msg))
+                err_str = "Tuner caught rtlsdr error reading async {}".format(msg)
+                self.logger.error(err_str)
+                self.email.send(basic.ADSB.cfg_email_recipient, "Spots error", err_str)
 
                 if time.time() - self.sdr_async_ts >= 1.0:
                     self.sdr = rtlsdr.RtlSdr()
