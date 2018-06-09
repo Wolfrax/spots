@@ -294,8 +294,24 @@ class Squitter(basic.ADSB):
         # Basic algorithm
         #   https://adsb-decode-guide.readthedocs.io/en/latest/content/airborne-position.html
 
+        # The idea is that we first try to decode CPR "absolute" (decodeCPR) in radar.
+        # decodeCPR depends on an even and odd message pair, received within 10 seconds of each other. If decodeCPR
+        # does not have a odd/even message pair with less 10 seconds between each other, it will return False.
+        #
+        # Before this is decodeCPR has returned True, ie successfully decoded latitude and longitude for a flight
+        # (stored in the data dictionary), no other position decoding is done.
+        #
+        # After the first initial successful call to decodeCPR, the radar routine will for succeeding message call
+        # decodeCPR first. If this call returns False, it will call decodeCPR_relative.
+        #
+        # decodeCPR_relative will decode if it has at least one even or odd message available, it will decode using
+        # the latest latitude/longitude. It will not use the static coordinates in the configuration file for the ADS-B
+        # reciever as previously tried.
+
         if self.odd_time == 0 and self.even_time == 0:
             return False  # Got to have at least one message
+        if self.data['latitude'] == "" or self.data['longitude'] == "":
+            return False  # decodeCPR has not yet decoded a position, needed before we try to decode relative
 
         if self.odd_time == 0:  # Even message
             d_lat = 360.0 / 60.0
@@ -306,8 +322,10 @@ class Squitter(basic.ADSB):
             lat_cpr = self.odd_raw_latitude / self.MAX_17_BITS
             lon_cpr = self.odd_raw_longitude / self.MAX_17_BITS
 
-        j = int(math.floor(self.cfg_latitude / d_lat)) + \
-            int(math.floor((self.cfg_latitude % d_lat) / d_lat - lat_cpr + 0.5))  # latitude index
+        lat = float(self.data['latitude'])
+        j = int(math.floor(lat / d_lat)) + int(math.floor((lat % d_lat) / d_lat - lat_cpr + 0.5))  # latitude index
+        # j = int(math.floor(self.cfg_latitude / d_lat)) + \
+        #    int(math.floor((self.cfg_latitude % d_lat) / d_lat - lat_cpr + 0.5))  # latitude index
 
         latitude = d_lat * (j + lat_cpr)
 
@@ -316,18 +334,20 @@ class Squitter(basic.ADSB):
         else:
             d_lon = 360.0 / CPR_NL(latitude)
 
-        m = int(math.floor(self.cfg_longitude / d_lon)) + \
-            int(math.floor((self.cfg_longitude % d_lon) / d_lon - lon_cpr + 0.5))
+        lon = float(self.data['longitude'])
+        m = int(math.floor(lon / d_lon)) + int(math.floor((lon % d_lon) / d_lon - lon_cpr + 0.5))
+        # m = int(math.floor(self.cfg_longitude / d_lon)) + \
+        #    int(math.floor((self.cfg_longitude % d_lon) / d_lon - lon_cpr + 0.5))
 
         longitude = d_lon * (m + lon_cpr)
 
         self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
         self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
 
-        basic.statistics['max_lat'] = max(basic.statistics['max_lat'], self.data['latitude'])
-        basic.statistics['min_lat'] = min(basic.statistics['min_lat'], self.data['latitude'])
-        basic.statistics['max_lon'] = max(basic.statistics['max_lon'], self.data['longitude'])
-        basic.statistics['min_lon'] = min(basic.statistics['min_lon'], self.data['longitude'])
+        basic.statistics['max_lat'] = max(basic.statistics['max_lat'], latitude)
+        basic.statistics['min_lat'] = min(basic.statistics['min_lat'], latitude)
+        basic.statistics['max_lon'] = max(basic.statistics['max_lon'], longitude)
+        basic.statistics['min_lon'] = min(basic.statistics['min_lon'], longitude)
 
         return True
 
@@ -380,10 +400,10 @@ class Squitter(basic.ADSB):
         self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
         self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
 
-        basic.statistics['max_lat'] = max(basic.statistics['max_lat'], self.data['latitude'])
-        basic.statistics['min_lat'] = min(basic.statistics['min_lat'], self.data['latitude'])
-        basic.statistics['max_lon'] = max(basic.statistics['max_lon'], self.data['longitude'])
-        basic.statistics['min_lon'] = min(basic.statistics['min_lon'], self.data['longitude'])
+        basic.statistics['max_lat'] = max(basic.statistics['max_lat'], latitude)
+        basic.statistics['min_lat'] = min(basic.statistics['min_lat'], latitude)
+        basic.statistics['max_lon'] = max(basic.statistics['max_lon'], longitude)
+        basic.statistics['min_lon'] = min(basic.statistics['min_lon'], longitude)
 
         # Reset all flags
         self.odd_time = 0

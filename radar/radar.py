@@ -344,13 +344,8 @@ class Radar(basic.ADSB, threading.Thread):
         # if not self.blips[icao]['msg'].decodeCPR_relative():
         #    self.blips[icao]['msg'].decodeCPR()
 
-        self.blips[icao]['msg'].decodeCPR()
-
-        # Logic, decodeCPR returns True if
-        # 1. It successfully decodes one pair of odd+even position messages, not separated by more than 10 seconds
-        # 2. Give that condition 1) above is fulfilled
-        #if self.blips[icao]['msg'].decodeCPR():
-        #    self.blips[icao]['msg'].decodeCPR_relative()
+        if not self.blips[icao]['msg'].decodeCPR():
+            self.blips[icao]['msg'].decodeCPR_relative()
 
         if basic.ADSB.cfg_use_flight_db and msg['call_sign'] != "":
             self.flight_db.add(msg['call_sign'])

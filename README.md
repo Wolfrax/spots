@@ -111,8 +111,8 @@ Configuration for spots is in `spots_config.json`. Follows json syntax with no e
 * file name (string): if "read from file" is true, this is the file to read from
 * use text display (true/false): if true, show data in table format, if false show in serialised way
 * max blip ttl (integer or float): how many seconds to keep an identified aircraft in the table display
-* user latitude (float): your latitude position
-* user longitude (float): and your longitude
+* user latitude (float): your latitude position (not used)
+* user longitude (float): and your longitude (not used)
 * log file (string): The name of the log file
 * log max bytes (integer): How many bytes to log before the log file is rotated
 * log backup count (integer): How many roted log files to keep

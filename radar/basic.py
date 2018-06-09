@@ -700,15 +700,6 @@ class Stats:
         if os.path.exists(location):
             try:
                 self.data = simplejson.load(open(self.loc, 'rb'))
-
-                self['spots_version'] = ADSB.VERSION
-                self['latest_start_time'] = time.time()
-                self['latest_start_time_string'] = time.ctime(self['latest_start_time'])
-
-                if self['start_time'] == 0:
-                    self['start_time'] = self['latest_start_time']
-                if self['start_time_string'] == "":
-                    self['start_time_string'] = self['latest_start_time_string']
             except simplejson.JSONDecodeError:
                 try:
                     self.logger.info("Init, stats file corrupt, using backup")
@@ -717,8 +708,15 @@ class Stats:
                 except simplejson.JSONDecodeError:
                     # No joy, give up and use default values
                     self.logger.info("Init, DB file and backup corrupt, using defaults")
-                    self['start_time'] = self['latest_start_time']
-                    self['start_time_string'] = self['latest_start_time_string']
+
+        self['spots_version'] = ADSB.VERSION
+        self['latest_start_time'] = time.time()
+        self['latest_start_time_string'] = time.ctime(self['latest_start_time'])
+
+        if self['start_time'] == 0:
+            self['start_time'] = self['latest_start_time']
+        if self['start_time_string'] == "":
+            self['start_time_string'] = self['latest_start_time_string']
 
         self.stat_timer = RepeatTimer(3600, self.dump, "Statistics timer")  # Dump statistics to file once per hour
         self.stat_timer.start()
