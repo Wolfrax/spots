@@ -250,7 +250,7 @@ class Radar(basic.ADSB, threading.Thread):
             # We create a simple persistent storage for counting of flights
             self.flight_db = FlightDB(basic.ADSB.cfg_flight_db_name)
             self.flight_db.dump()
-            self.flight_timer = basic.RepeatTimer(10 * 60, self._dump_flight_db, "Radar flight DB timer")
+            self.flight_timer = basic.RepeatTimer(600, self._dump_flight_db, "Radar flight DB timer")
             self.flight_timer.start()
 
         self.blip_timer = basic.RepeatTimer(1, self._scan_blips, "Radar blip timer")
@@ -409,14 +409,14 @@ class Radar(basic.ADSB, threading.Thread):
         self.logger.info("Radar dying")
 
         if basic.ADSB.cfg_use_flight_db:
-            self._dump_flight_db()
             self.flight_timer.cancel()
+            self._dump_flight_db()
         self.finished.set()
         self.blip_timer.cancel()
         self.stat_timer.cancel()
         if self.cfg_use_text_display:
             self.screen.close()
-        basic.statistics.dump()
+        basic.statistics.stop()
 
     def tuner_read(self, msgs, stop=False):
         """

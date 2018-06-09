@@ -720,6 +720,9 @@ class Stats:
                     self['start_time'] = self['latest_start_time']
                     self['start_time_string'] = self['latest_start_time_string']
 
+        self.stat_timer = RepeatTimer(3600, self.dump, "Statistics timer")  # Dump statistics to file once per hour
+        self.stat_timer.start()
+
     def __setitem__(self, key, value):
         self.data[key] = value
 
@@ -744,6 +747,10 @@ class Stats:
 
         with open(self.loc, 'wt') as stat_file:
             simplejson.dump(self.data, stat_file, skipkeys=True, indent=4*' ')
+
+    def stop(self):
+        self.stat_timer.cancel()
+        self.dump()
 
     def __str__(self):
         st = "\n"

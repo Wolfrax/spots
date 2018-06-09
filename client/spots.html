@@ -184,8 +184,8 @@
                 prev_nr_preambles = series['valid_preambles'];
 
                 $("#hdStatistics").html("Version " + series['spots_version'] + " " +
-                    "running since " + series['start_time_string'] + " " +
-                    "(latest restart " + series['latest_start_time_string'] + ")");
+                    "running since " + series['start_time_string'] + "<br> " +
+                    "Latest restart " + series['latest_start_time_string']);
 
                 stats.push(series['df_total']);
                 stats.push(series['df_0']);
