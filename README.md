@@ -119,6 +119,18 @@ Configuration for spots is in `spots_config.json`. Follows json syntax with no e
 * spots server address (localhost or ip-address): the address for the server
 * spots server port (5051): the server port
 * flight db name (string): name of database file to store flight counts, if the value is "" this function is skipped
+* statistics file name (string): name of file to store statistics, which are read during start
+* config file (string): name of file where personal email configuration data is stored, if the value is "" no emailing is done
+* email recipient (string): name of email recipient, used when rare errors occur for notification. SMTP information is stored in the config file (above)
+
+config file for SMTP info use the following syntax:
+{
+  "//": "CAUTION: Stored in plain text!",
+  "SMTP_server":  "smtp.gmail.com",
+  "SMTP_port": 587,
+  "GMAIL_username": "mats.melander@gmail.com",
+  "GMAIL_pw": "YourSercretPassword"
+}
 
 ## Client/Server
 

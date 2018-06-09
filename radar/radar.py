@@ -261,7 +261,6 @@ class Radar(basic.ADSB, threading.Thread):
     def _dump_flight_db(self):
         if basic.ADSB.cfg_use_flight_db:
             # Save to persistent storage, flights and statistics
-            self.logger.info("Dumping DB to file")
             self.flight_db.dump()
 
     def _show_stats(self):
@@ -342,8 +341,16 @@ class Radar(basic.ADSB, threading.Thread):
         else:
             self.blips[icao] = {'msg': msg, 'timestamp': time.time(), 'count': 1}
 
-        if not self.blips[icao]['msg'].decodeCPR_relative():
-            self.blips[icao]['msg'].decodeCPR()
+        # if not self.blips[icao]['msg'].decodeCPR_relative():
+        #    self.blips[icao]['msg'].decodeCPR()
+
+        self.blips[icao]['msg'].decodeCPR()
+
+        # Logic, decodeCPR returns True if
+        # 1. It successfully decodes one pair of odd+even position messages, not separated by more than 10 seconds
+        # 2. Give that condition 1) above is fulfilled
+        #if self.blips[icao]['msg'].decodeCPR():
+        #    self.blips[icao]['msg'].decodeCPR_relative()
 
         if basic.ADSB.cfg_use_flight_db and msg['call_sign'] != "":
             self.flight_db.add(msg['call_sign'])
@@ -409,6 +416,7 @@ class Radar(basic.ADSB, threading.Thread):
         self.stat_timer.cancel()
         if self.cfg_use_text_display:
             self.screen.close()
+        basic.statistics.dump()
 
     def tuner_read(self, msgs, stop=False):
         """

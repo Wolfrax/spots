@@ -306,8 +306,8 @@ class Squitter(basic.ADSB):
             lat_cpr = self.odd_raw_latitude / self.MAX_17_BITS
             lon_cpr = self.odd_raw_longitude / self.MAX_17_BITS
 
-        j = math.floor(self.cfg_latitude / d_lat) + \
-            math.floor((self.cfg_latitude % d_lat) / d_lat - lat_cpr + 0.5)  # latitude index
+        j = int(math.floor(self.cfg_latitude / d_lat)) + \
+            int(math.floor((self.cfg_latitude % d_lat) / d_lat - lat_cpr + 0.5))  # latitude index
 
         latitude = d_lat * (j + lat_cpr)
 
@@ -316,12 +316,18 @@ class Squitter(basic.ADSB):
         else:
             d_lon = 360.0 / CPR_NL(latitude)
 
-        m = math.floor(self.cfg_longitude / d_lon) + math.floor((self.cfg_longitude % d_lon) / d_lon - lon_cpr + 0.5)
+        m = int(math.floor(self.cfg_longitude / d_lon)) + \
+            int(math.floor((self.cfg_longitude % d_lon) / d_lon - lon_cpr + 0.5))
 
         longitude = d_lon * (m + lon_cpr)
 
         self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
         self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
+
+        basic.statistics['max_lat'] = max(basic.statistics['max_lat'], self.data['latitude'])
+        basic.statistics['min_lat'] = min(basic.statistics['min_lat'], self.data['latitude'])
+        basic.statistics['max_lon'] = max(basic.statistics['max_lon'], self.data['longitude'])
+        basic.statistics['min_lon'] = min(basic.statistics['min_lon'], self.data['longitude'])
 
         return True
 
@@ -332,13 +338,15 @@ class Squitter(basic.ADSB):
 
         if self.odd_time == 0 or self.even_time == 0:
             return False  # we need both even + odd messages
+        if abs(self.odd_time - self.even_time) > 10.0:
+            return False  # Need to have odd and even messages within 10 seconds
 
         cpr_lat_even = self.even_raw_latitude / self.MAX_17_BITS
         cpr_lon_even = self.even_raw_longitude / self.MAX_17_BITS
         cpr_lat_odd = self.odd_raw_latitude / self.MAX_17_BITS
         cpr_lon_odd = self.odd_raw_longitude / self.MAX_17_BITS
 
-        j = math.floor(59 * cpr_lat_even - 60 * cpr_lat_odd + 0.5)  # latitude index
+        j = int(math.floor(59 * cpr_lat_even - 60 * cpr_lat_odd + 0.5))  # latitude index
 
         latitude_even = float((360.0 / 60.0) * (j % 60 + cpr_lat_even))
         latitude_odd = float((360.0 / 59.0) * (j % 59 + cpr_lat_odd))
@@ -358,12 +366,12 @@ class Squitter(basic.ADSB):
         if self.even_time >= self.odd_time:
             ni = max(CPR_NL(latitude_even), 1)
             dlon = 360.0 / ni
-            m = math.floor(cpr_lon_even * (CPR_NL(latitude_even) - 1) - cpr_lon_odd * CPR_NL(latitude_even) + 0.5)
+            m = int(math.floor(cpr_lon_even * (CPR_NL(latitude_even) - 1) - cpr_lon_odd * CPR_NL(latitude_even) + 0.5))
             longitude = dlon * (m % ni + cpr_lon_even)
         else:
             ni = max(CPR_NL(latitude_odd) - 1, 1)
             dlon = 360.0 / ni
-            m = math.floor(cpr_lon_even * (CPR_NL(latitude_odd) - 1) - cpr_lon_odd * CPR_NL(latitude_odd) + 0.5)
+            m = int(math.floor(cpr_lon_even * (CPR_NL(latitude_odd) - 1) - cpr_lon_odd * CPR_NL(latitude_odd) + 0.5))
             longitude = dlon * (m % ni + cpr_lon_odd)
 
         if longitude >= 180:
@@ -371,6 +379,11 @@ class Squitter(basic.ADSB):
 
         self.data['latitude'] = str(round(latitude, 3)) if latitude != 0.0 else ""
         self.data['longitude'] = str(round(longitude, 3)) if longitude != 0.0 else ""
+
+        basic.statistics['max_lat'] = max(basic.statistics['max_lat'], self.data['latitude'])
+        basic.statistics['min_lat'] = min(basic.statistics['min_lat'], self.data['latitude'])
+        basic.statistics['max_lon'] = max(basic.statistics['max_lon'], self.data['longitude'])
+        basic.statistics['min_lon'] = min(basic.statistics['min_lon'], self.data['longitude'])
 
         # Reset all flags
         self.odd_time = 0

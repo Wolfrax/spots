@@ -5,6 +5,7 @@ import smtplib
 import os
 import simplejson
 import logging
+import shutil
 import __init__ as init
 
 
@@ -200,6 +201,7 @@ class ADSB:
     cfg_config_file = config["config file"]
     cfg_use_email = True if cfg_config_file != "" else False
     cfg_email_recipient = config["email recipient"]
+    cfg_stats_filename = config["statistics filename"]
 
     def __init__(self):
         pass
@@ -640,6 +642,8 @@ class Stats:
     data = {'spots_version': "",
             'start_time': 0,
             'start_time_string': "",
+            'latest_start_time': 0,
+            'latest_start_time_string': "",
             'valid_preambles': 0,
             'valid_crc': 0,
             'not_valid_crc': 0,
@@ -677,16 +681,44 @@ class Stats:
             'df_31': 0,
             'df_total': 0,
             'no_unique_icao': 0,
-            'flights': 0
+            'flights': 0,
+            'max_lat': -90,
+            'min_lat': 90,
+            'max_lon': -180,
+            'min_lon': 180
             }
     icao_list = []
     flight_list = {}
 
     def __init__(self):
-        self['spots_version'] = ADSB.VERSION
-        self['start_time'] = time.time()
-        self['start_time_string'] = time.ctime(self['start_time'])
-        pass
+        self.logger = logging.getLogger('spots.Stats')
+
+        location = os.path.expanduser(ADSB.cfg_stats_filename)
+        self.loc = ADSB.cfg_stats_filename
+        self.loc_bck = self.loc + ".1"
+
+        if os.path.exists(location):
+            try:
+                self.data = simplejson.load(open(self.loc, 'rb'))
+
+                self['spots_version'] = ADSB.VERSION
+                self['latest_start_time'] = time.time()
+                self['latest_start_time_string'] = time.ctime(self['latest_start_time'])
+
+                if self['start_time'] == 0:
+                    self['start_time'] = self['latest_start_time']
+                if self['start_time_string'] == "":
+                    self['start_time_string'] = self['latest_start_time_string']
+            except simplejson.JSONDecodeError:
+                try:
+                    self.logger.info("Init, stats file corrupt, using backup")
+                    # Current file is corrupt, try to fallback to backup file
+                    self.db = simplejson.load(open(self.loc_bck, 'rb'))
+                except simplejson.JSONDecodeError:
+                    # No joy, give up and use default values
+                    self.logger.info("Init, DB file and backup corrupt, using defaults")
+                    self['start_time'] = self['latest_start_time']
+                    self['start_time_string'] = self['latest_start_time_string']
 
     def __setitem__(self, key, value):
         self.data[key] = value
@@ -705,6 +737,13 @@ class Stats:
         else:
             self.flight_list[call_sign] = 0
         self['flights'] = len(self.flight_list)
+
+    def dump(self):
+        if os.path.isfile(self.loc):
+            shutil.copy2(self.loc, self.loc_bck)  # Make a backup
+
+        with open(self.loc, 'wt') as stat_file:
+            simplejson.dump(self.data, stat_file, skipkeys=True, indent=4*' ')
 
     def __str__(self):
         st = "\n"
@@ -745,6 +784,9 @@ class Stats:
         st += "DF29: {} ".format(self['df_29'])
         st += "DF30: {} ".format(self['df_30'])
         st += "DF31: {} ".format(self['df_31'])
+        st += "\n"
+        st += "Max lat: {} Min lat: {}".format(self['max_lat'], self['min_lat'])
+        st += "Max lon: {} Min lat: {}".format(self['max_lon'], self['min_lon'])
         st += "\n"
         st += "DF Total: {} ".format(self['df_total'])
         st += "\n"

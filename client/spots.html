@@ -80,7 +80,41 @@
         <div id="graphPreamble" style="width:150px"></div>
     </div>
     <div class="col_sm-12" id="summary"></div>
-    <div class="col_sm-12" id="footer">Mats Melander (c)</div>
+
+    <div class="col-sm-12">
+        <div id="header3">
+            <h3>Flights</h3>
+            <h4 id="hdFlightDB"></h4>
+        </div>
+    </div>
+
+    <div class="row" align="center">
+        <div class="col-sm-12">
+            <div class="col-sm-6">
+                <div id="FlightDB">
+                    <table id="tbFlightDB">
+                        <thead>
+                        <tr>
+                            <th>Top 10 Flights</th>
+                            <th>Count</th>
+                            <th>Bottom 10 Flights</th>
+                            <th>Count</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <br>
+    <div class="row">
+        <div class="col_sm-12" id="footer">Mats Melander (c)</div>
+    </div>
+
+
 
     <script type="text/javascript">
         function Spots() {
@@ -117,6 +151,30 @@
                 $(rows).appendTo("#tbCurrentData tbody");
             }
 
+            function FlightDB(series) {
+                var rows = "";
+                var i;
+                var max_ind;
+
+                $("#hdFlightDB").html("Since " + series['start_date'] + " Total flight count: " + series['total_cnt']);
+                max_ind = Math.min(10, series['flights'].length);
+                min_ind = Math.max(0, series['flights'].length - 10);
+                for (i = 0; i < max_ind; i++) {
+                    rows += "<tr><td>" +
+                        "<a href='https://www.avdelphi.com/flight.html?callsign=" + series['flights'][i][0] + "'>" +
+                        series['flights'][i][0] + "</a>" + "</td><td>" +
+                        series['flights'][i][1] + "</td>";
+                    rows += "<td>" +
+                        "<a href='https://www.avdelphi.com/flight.html?callsign=" + series['flights'][min_ind + i][0] + "'>" +
+                        series['flights'][min_ind + i][0] + "</a>" + "</td><td>" +
+                        series['flights'][min_ind + i][1] + "</td></tr>";
+                }
+                for (i = max_ind; i < series['flights'].length; i++) {
+                }
+                $("#FlightDB").find("tbody").empty();
+                $(rows).appendTo("#FlightDB tbody");
+            }
+
             function Statistics(series) {
                 var stats = [];
                 var preambles_per_secs = (series['valid_preambles'] - prev_nr_preambles) / 10;
@@ -126,7 +184,8 @@
                 prev_nr_preambles = series['valid_preambles'];
 
                 $("#hdStatistics").html("Version " + series['spots_version'] + " " +
-                    "running since " + series['start_time_string']);
+                    "running since " + series['start_time_string'] + " " +
+                    "(latest restart " + series['latest_start_time_string'] + ")");
 
                 stats.push(series['df_total']);
                 stats.push(series['df_0']);
@@ -171,10 +230,6 @@
                 i.innerHTML = html;
             }
 
-            function SignalCache(series) {
-                Plot.signal(series);
-            }
-
             function updateTable() {
                 $.ajax({
                     url: "/spots/data",
@@ -184,6 +239,18 @@
                 }).done(function (series) {
                     setTimeout(updateTable, 1000);
                     Table(series);
+                });
+            }
+
+            function updateFlightDB() {
+                $.ajax({
+                    url: "/spots/flight_db",
+                    method: 'GET',
+                    dataType: 'json',
+                    cache: false
+                }).done(function (series) {
+                    setTimeout(updateFlightDB, 1000);
+                    FlightDB(series);
                 });
             }
 
@@ -200,6 +267,7 @@
             }
 
             updateTable();
+            updateFlightDB();
             updateStatistics();
         }
     </script>
