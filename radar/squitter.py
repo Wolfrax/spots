@@ -359,6 +359,8 @@ class Squitter(basic.ADSB):
         if self.odd_time == 0 or self.even_time == 0:
             return False  # we need both even + odd messages
         if abs(self.odd_time - self.even_time) > 10.0:
+            # Reference for 10 seconds, chapter 2.4:
+            # http://www.eurocontrol.int/eec/gallery/content/public/document/eec/report/1995/002_Aircraft_Position_Report_using_DGPS_Mode-S.pdf
             return False  # Need to have odd and even messages within 10 seconds
 
         cpr_lat_even = self.even_raw_latitude / self.MAX_17_BITS

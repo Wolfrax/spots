@@ -254,7 +254,7 @@ class Radar(basic.ADSB, threading.Thread):
             self.flight_timer.start()
 
         self.blip_timer = basic.RepeatTimer(1, self._scan_blips, "Radar blip timer")
-        self.stat_timer = basic.RepeatTimer(3600, self._show_stats, "Radar stat timer")
+        self.stat_timer = basic.RepeatTimer(3600, self._save_stats, "Radar stat timer")
         self.blip_timer.start()
         self.stat_timer.start()
 
@@ -263,9 +263,10 @@ class Radar(basic.ADSB, threading.Thread):
             # Save to persistent storage, flights and statistics
             self.flight_db.dump()
 
-    def _show_stats(self):
+    def _save_stats(self):
         self.logger.info("Dumping statistics to file")
         self.logger.info(str(basic.statistics))
+        basic.statistics.dump()
 
     def get_flight_db(self):
         if basic.ADSB.cfg_use_flight_db:
@@ -408,10 +409,10 @@ class Radar(basic.ADSB, threading.Thread):
             self._dump_flight_db()
         self.finished.set()
         self.blip_timer.cancel()
+        self._save_stats()
         self.stat_timer.cancel()
         if self.cfg_use_text_display:
             self.screen.close()
-        basic.statistics.stop()
 
     def tuner_read(self, msgs, stop=False):
         """

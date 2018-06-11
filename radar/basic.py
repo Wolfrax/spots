@@ -609,8 +609,8 @@ class EmailClient:
             try:
                 email_cfg = simplejson.load(open(ADSB.cfg_config_file, 'rb'))
                 self.email_session = smtplib.SMTP(email_cfg['SMTP_server'], email_cfg['SMTP_port'])
-                self.email_username = email_cfg['GMAIL_username']
-                self.email_pw = email_cfg['GMAIL_pw']
+                self.email_username = email_cfg['MAIL_username']
+                self.email_pw = email_cfg['MAIL_pw']
             except simplejson.JSONDecodeError:
                 self.logger.info("Init, config file corrupt")
 
@@ -718,9 +718,6 @@ class Stats:
         if self['start_time_string'] == "":
             self['start_time_string'] = self['latest_start_time_string']
 
-        self.stat_timer = RepeatTimer(3600, self.dump, "Statistics timer")  # Dump statistics to file once per hour
-        self.stat_timer.start()
-
     def __setitem__(self, key, value):
         self.data[key] = value
 
@@ -745,10 +742,6 @@ class Stats:
 
         with open(self.loc, 'wt') as stat_file:
             simplejson.dump(self.data, stat_file, skipkeys=True, indent=4*' ')
-
-    def stop(self):
-        self.stat_timer.cancel()
-        self.dump()
 
     def __str__(self):
         st = "\n"
@@ -791,6 +784,7 @@ class Stats:
         st += "DF31: {} ".format(self['df_31'])
         st += "\n"
         st += "Max lat: {} Min lat: {}".format(self['max_lat'], self['min_lat'])
+        st += "\n"
         st += "Max lon: {} Min lat: {}".format(self['max_lon'], self['min_lon'])
         st += "\n"
         st += "DF Total: {} ".format(self['df_total'])
