@@ -785,7 +785,7 @@ class Stats:
         st += "\n"
         st += "Max lat: {} Min lat: {}".format(self['max_lat'], self['min_lat'])
         st += "\n"
-        st += "Max lon: {} Min lat: {}".format(self['max_lon'], self['min_lon'])
+        st += "Max lon: {} Min lot: {}".format(self['max_lon'], self['min_lon'])
         st += "\n"
         st += "DF Total: {} ".format(self['df_total'])
         st += "\n"

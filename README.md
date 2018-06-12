@@ -128,8 +128,8 @@ config file for SMTP info use the following syntax:
   "//": "CAUTION: Stored in plain text!",
   "SMTP_server":  "smtp.gmail.com",
   "SMTP_port": 587,
-  "GMAIL_username": "mats.melander@gmail.com",
-  "GMAIL_pw": "YourSercretPassword"
+  "MAIL_username": "mats.melander@gmail.com",
+  "MAIL_pw": "YourSercretPassword"
 }
 
 ## Client/Server
