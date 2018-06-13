@@ -184,7 +184,6 @@ class FlightDB:
                     self.db = init_db
         else:
             self.db = init_db
-        self.dump()
 
     def add(self, flight):
         self.lock.acquire()
@@ -210,7 +209,9 @@ class FlightDB:
         return res
 
     def dump(self):
-        shutil.copy2(self.loc, self.loc_bck)  # Make a backup
+        if os.path.isfile(self.loc):
+            shutil.copy2(self.loc, self.loc_bck)  # Make a backup
+
         self.lock.acquire()
         with open(self.loc, 'wt') as f:
             simplejson.dump(self.db, f, skipkeys=True, indent=4*' ')
@@ -250,18 +251,13 @@ class Radar(basic.ADSB, threading.Thread):
             # We create a simple persistent storage for counting of flights
             self.flight_db = FlightDB(basic.ADSB.cfg_flight_db_name)
             self.flight_db.dump()
-            self.flight_timer = basic.RepeatTimer(600, self._dump_flight_db, "Radar flight DB timer")
+            self.flight_timer = basic.RepeatTimer(600, self.flight_db.dump(), "Radar flight DB timer")
             self.flight_timer.start()
 
         self.blip_timer = basic.RepeatTimer(1, self._scan_blips, "Radar blip timer")
         self.stat_timer = basic.RepeatTimer(3600, self._save_stats, "Radar stat timer")
         self.blip_timer.start()
         self.stat_timer.start()
-
-    def _dump_flight_db(self):
-        if basic.ADSB.cfg_use_flight_db:
-            # Save to persistent storage, flights and statistics
-            self.flight_db.dump()
 
     def _save_stats(self):
         self.logger.info("Dumping statistics to file")
@@ -402,17 +398,21 @@ class Radar(basic.ADSB, threading.Thread):
         self.logger.info("Radar stopping")
 
     def _die(self):
-        self.logger.info("Radar dying")
+        self.logger.info("Radar dying...")
 
         if basic.ADSB.cfg_use_flight_db:
             self.flight_timer.cancel()
-            self._dump_flight_db()
-        self.finished.set()
+            self.flight_db.dump()
+
         self.blip_timer.cancel()
-        self._save_stats()
+
         self.stat_timer.cancel()
+        self._save_stats()
+
         if self.cfg_use_text_display:
             self.screen.close()
+
+        self.finished.set()
 
     def tuner_read(self, msgs, stop=False):
         """

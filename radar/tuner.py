@@ -169,8 +169,6 @@ class Tuner(basic.ADSB, threading.Thread):
         if self.filename is None:
             self.sdr.cancel_read_async()
 
-        self.logger.info(str(basic.statistics))
-
     def exit_terminate(self, signum, frame):
         self.logger.info("Caught SIGTERM")
         self.die()

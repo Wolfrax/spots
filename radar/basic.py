@@ -727,14 +727,14 @@ class Stats:
     def add_icao(self, icao_address):
         if icao_address not in self.icao_list:
             self.icao_list.append(icao_address)
-            self['no_unique_icao'] = len(self.icao_list)
+            self['no_unique_icao'] += 1
 
     def add_flight(self, call_sign):
         if call_sign in self.flight_list:
             self.flight_list[call_sign] += 1
         else:
-            self.flight_list[call_sign] = 0
-        self['flights'] = len(self.flight_list)
+            self.flight_list[call_sign] = 1
+        self['flights'] += 1
 
     def dump(self):
         if os.path.isfile(self.loc):
