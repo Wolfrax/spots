@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <title>Spots</title>
     <link rel="shortcut icon" href="https://www.viltstigen.se/favicon.png">
-    <script type="text/javascript" src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
     <script type="text/javascript" src="https://code.highcharts.com/highcharts-more.js"></script>
     <script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
-    <script type="text/javascript" src="https://code.highcharts.com/modules/solid-gauge.js"></script>
+    <script type="text/javascript" src="https://code.highcharts.com/stock/modules/solid-gauge.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
-    <script type="text/javascript" src="spots.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
@@ -32,7 +31,9 @@
     </style>
 </head>
 
-<body onload="Spots();">
+<body>
+
+<script type="text/javascript" src="spots.js"></script>
 
 <div class="container">
     <div class="col-sm-12">
@@ -271,7 +272,9 @@
             updateFlightDB();
             updateStatistics();
         }
+        Spots();
     </script>
+
 </div>
 </body>
 </html>
