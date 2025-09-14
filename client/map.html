@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Spots map</title>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no"/>
+    <style type="text/css">
+        html {
+            height: 100%
+        }
+
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0
+        }
+
+        #map_canvas {
+            height: 100%
+        }
+
+        #info {
+            position: absolute;
+            width: 20%;
+            height: 100%;
+            bottom: 0px;
+            right: 0px;
+            top: 0px;
+            background-color: white;
+            border-left: 1px #666 solid;
+            font-family: Helvetica;
+        }
+
+        #info div {
+            padding: 0px;
+            padding-left: 10px;
+            margin: 0px;
+        }
+
+        #info div h1 {
+            margin-top: 10px;
+            font-size: 16px;
+        }
+
+        #info div p {
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+
+    <script type="text/javascript">
+        Map = null;
+        CenterLat = 55.732727;
+        CenterLon = 13.172479;
+        Planes = {};
+        NumPlanes = 0;
+        Selected = null;
+
+        function initMap() {
+            Map = new google.maps.Map(document.getElementById('map_canvas'), {
+                center: {lat: CenterLat, lng: CenterLon},
+                zoom: 8,
+                mapTypeId: google.maps.MapTypeId.ROADMAP
+            });
+            window.setInterval(function () {
+                fetchData();
+                refreshGeneralInfo();
+            }, 1000);
+        }
+
+        function getIconForPlane(plane) { // Ok
+            var r = 255, g = 255, b = 0;
+            var maxalt = 40000;
+            /* Max altitude in the average case */
+            var invalt = maxalt - parseFloat(plane['altitude']);
+            var selected = (Selected == plane['ICAO24']);
+            if (invalt < 0) invalt = 0;
+            b = parseFloat(255 / maxalt * invalt);
+            return {
+                strokeWeight: (selected ? 2 : 1),
+                path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                scale: 5,
+                fillColor: 'rgb(' + r + ',' + g + ',' + b + ')',
+                fillOpacity: 0.9,
+                rotation: parseFloat(plane['heading'])
+            };
+        }
+        function selectPlane() {
+            if (!Planes[this.planehex]) return;
+            var old = Selected;
+            Selected = this.planehex;
+            if (Planes[old]) {
+                /* Remove the highlight in the previously selected plane. */
+                Planes[old].marker.setIcon(getIconForPlane(Planes[old]));
+            }
+            Planes[Selected].marker.setIcon(getIconForPlane(Planes[Selected]));
+            refreshSelectedInfo();
+        }
+
+        function refreshGeneralInfo() {
+            var i = document.getElementById('geninfo');
+            i.innerHTML = NumPlanes + ' planes on screen.';
+        }
+        function refreshSelectedInfo() {
+            var i = document.getElementById('selinfo');
+            var p = Planes[Selected];
+            if (!p) return;
+            var html = 'ICAO: ' + p['ICAO24'] + '<br>';
+            if (p['call_sign'] !== "") {
+                html += '<b>' + p['call_sign'] + '</b><br>';
+            }
+            html += 'Altitude: ' + p['altitude'] + ' meters<br>';
+            html += 'Speed: ' + p['velocity'] + ' km/h<br>';
+            html += 'Coordinates: ' + p['latitude'] + ', ' + p['longitude'] + '<br>';
+            i.innerHTML = html;
+        }
+        function fetchData() {
+            $.ajax({
+                url: "/spots/data",
+                method: 'GET',
+                dataType: 'json',
+                cache: false
+            }).done(function (data) {
+                var stillhere = {};
+                for (var j = 0; j < data.length; j++) {
+                    var plane = data[j];
+                    var marker = null;
+                    stillhere[plane['ICAO24']] = true;
+                    plane['call_sign'] = $.trim(plane['call_sign']);
+                    if (Planes[plane['ICAO24']]) {
+                        var myplane = Planes[plane['ICAO24']];
+                        marker = myplane.marker;
+                        var icon = marker.getIcon();
+                        var newpos = new google.maps.LatLng(parseFloat(plane['latitude']), parseFloat(plane['longitude']));
+                        marker.setPosition(newpos);
+                        marker.setIcon(getIconForPlane(plane));
+                        myplane.altitude = parseFloat(plane['altitude']);
+                        myplane.speed = parseFloat(plane['velocity']);
+                        myplane.lat = parseFloat(plane['latitude']);
+                        myplane.lon = parseFloat(plane['longitude']);
+                        myplane.track = parseFloat(plane['heading']);
+                        myplane.flight = plane['call_sign'];
+                        if (myplane['ICAO24'] == Selected)
+                            refreshSelectedInfo();
+                    } else {
+                        marker = new google.maps.Marker({
+                            position: new google.maps.LatLng(parseFloat(plane['latitude']), parseFloat(plane['longitude'])),
+                            map: Map,
+                            icon: getIconForPlane(plane)
+                        });
+                        plane.marker = marker;
+                        marker.planehex = plane['ICAO24'];
+                        Planes[plane['ICAO24']] = plane;
+                        /* Trap clicks for this marker. */
+                        google.maps.event.addListener(marker, 'click', selectPlane);
+                    }
+                    if (plane['call_sign'] === "")
+                        marker.setTitle(plane['ICAO24']);
+                    else
+                        marker.setTitle(plane['call_sign'] + ' (' + plane['ICAO24'] + ')')
+                }
+                NumPlanes = data.length;
+                /* Remove idle planes. */
+                for (var p in Planes) {
+                    if (!stillhere[p]) {
+                        Planes[p].marker.setMap(null);
+                        delete Planes[p];
+                    }
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+<div id="map_canvas" style="width:80%; height:100%"></div>
+<div id="info">
+    <div>
+        <h1>Dump1090</h1>
+        <p id="geninfo"></p>
+        <p id="selinfo">Click on a plane for info.</p>
+    </div>
+</div>
+<script async defer
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyATvbYyz1Z74e_Ik1870gBBxP8_mdGz6ZY&callback=initMap"
+        type="text/javascript">
+
+</script>
+
+</body>
+</html>
+
+

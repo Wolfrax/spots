@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Spots</title>
+    <link rel="shortcut icon" href="https://www.viltstigen.se/favicon.png">
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script type="text/javascript" src="https://code.highcharts.com/highcharts-more.js"></script>
+    <script type="text/javascript" src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script type="text/javascript" src="https://code.highcharts.com/stock/modules/solid-gauge.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+    <style>
+        table {
+            font-family: arial, sans-serif;
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        td, th {
+            border: 1px solid #dddddd;
+            text-align: left;
+            padding: 8px;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<script type="text/javascript" src="spots.js"></script>
+
+<div class="container">
+    <div class="col-sm-12">
+        <div id="header1">
+            <h2>Spots at Viltstigen 3, Lund</h2>
+            <h4 id="hdCurrentData"></h4>
+        </div>
+    </div>
+    <div class="col-sm-12">
+        <div id="CurrentData">
+            <table id="tbCurrentData">
+                <thead>
+                <tr>
+                    <th>No</th>
+                    <th>ICAO</th>
+                    <th>Mode</th>
+                    <th>Squawk</th>
+                    <th>Flight</th>
+                    <th>Altitude</th>
+                    <th>Speed</th>
+                    <th>Heading</th>
+                    <th>Latitude</th>
+                    <th>Longitude</th>
+                    <th>Signal (%)</th>
+                    <th>Messages</th>
+                    <th>Time</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="col-sm-12">
+        <div id="header2">
+            <h3>Statistics</h3>
+            <h4 id="hdStatistics"></h4>
+        </div>
+    </div>
+
+    <div class="col-sm-10">
+        <div id="graphStatistics"></div>
+    </div>
+    <div class="col-sm-2">
+        <div id="graphPreamble" style="width:150px"></div>
+    </div>
+    <div class="col_sm-12" id="summary"></div>
+
+    <div class="col-sm-12">
+        <div id="header3">
+            <h3>Flights</h3>
+            <h4 id="hdFlightDB"></h4>
+        </div>
+    </div>
+
+    <div class="row" align="center">
+        <div class="col-sm-12">
+            <div class="col-sm-6">
+                <div id="FlightDB">
+                    <table id="tbFlightDB">
+                        <thead>
+                        <tr>
+                            <th>Top 10 Flights</th>
+                            <th>Count</th>
+                            <th>Bottom 10 Flights</th>
+                            <th>Count</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <br>
+    <div class="row">
+        <div class="col_sm-12" id="footer">Mats Melander (c)</div>
+    </div>
+
+
+
+    <script type="text/javascript">
+        function Spots() {
+            var Plot = new Plotter();
+            var prev_nr_preambles = 0;
+
+            function Table(series) {
+                var rows = "";
+                var i;
+
+                for (i = 0; i < series.length; i++) {
+                    rows += "<tr><td>" +
+                        (i + 1) + "</td><td>" +
+                        series[i]['ICAO24'] + "</td><td>" +
+                        series[i]['downlink_format'] + "</td><td>" +
+                        series[i]['squawk'] + "</td><td>" +
+                        "<a href='https://planefinder.net/data/flight/" + series[i]['call_sign'] + "'>" +
+                        series[i]['call_sign'] + "</a>" + "</td><td>" +
+                        series[i]['altitude'] + "</td><td>" +
+                        series[i]['velocity'] + "</td><td>" +
+                        series[i]['heading'] + "</td><td>" +
+                            "<a href='http://www.latlong.net/c/?lat=" + series[i]['latitude'] +
+                            "&long=" + series[i]['longitude'] + "'>" +
+                        series[i]['latitude'] + "</a>" + "</td><td>" +
+                            "<a href='http://www.latlong.net/c/?lat=" + series[i]['latitude'] +
+                            "&long=" + series[i]['longitude'] + "'>" +
+                        series[i]['longitude'] + "</a>" + "</td><td>" +
+                        series[i]['signal_strength'] + "</td><td>" +
+                        series[i]['count'] + "</td><td>" +
+                        series[i]['timestamp'] + "</td></tr>";
+                }
+
+                $("#tbCurrentData").find("tbody").empty();
+                $(rows).appendTo("#tbCurrentData tbody");
+            }
+
+            function FlightDB(series) {
+                var rows = "";
+                var i;
+                var max_ind;
+
+                $("#hdFlightDB").html("Since " + series['start_date'] + " Total flight count: " + series['total_cnt']);
+                max_ind = Math.min(10, series['flights'].length);
+                min_ind = Math.max(0, series['flights'].length - 10);
+                for (i = 0; i < max_ind; i++) {
+                    rows += "<tr><td>" +
+                        "<a href='https://www.avdelphi.com/flight.html?callsign=" + series['flights'][i][0] + "'>" +
+                        series['flights'][i][0] + "</a>" + "</td><td>" +
+                        series['flights'][i][1] + "</td>";
+                    rows += "<td>" +
+                        "<a href='https://www.avdelphi.com/flight.html?callsign=" + series['flights'][min_ind + i][0] + "'>" +
+                        series['flights'][min_ind + i][0] + "</a>" + "</td><td>" +
+                        series['flights'][min_ind + i][1] + "</td></tr>";
+                }
+                for (i = max_ind; i < series['flights'].length; i++) {
+                }
+                $("#FlightDB").find("tbody").empty();
+                $(rows).appendTo("#FlightDB tbody");
+            }
+
+            function Statistics(series) {
+                var stats = [];
+                var preambles_per_secs = (series['valid_preambles'] - prev_nr_preambles) / 10;
+
+                if (prev_nr_preambles !== 0)
+                    Plot.preamble(preambles_per_secs);
+                prev_nr_preambles = series['valid_preambles'];
+
+                $("#hdStatistics").html("Version " + series['spots_version'] + " " +
+                    "running since " + series['start_time_string'] + "<br> " +
+                    "Latest restart " + series['latest_start_time_string']);
+
+                stats.push(series['df_total']);
+                stats.push(series['df_0']);
+                stats.push({y: series['df_1'], color: '#FF0000' }); //
+                stats.push({y: series['df_2'], color: '#FF0000' }); //
+                stats.push({y: series['df_3'], color: '#FF0000' }); //
+                stats.push(series['df_4']);
+                stats.push(series['df_5']);
+                stats.push({y: series['df_6'], color: '#FF0000' });  //
+                stats.push({y: series['df_7'], color: '#FF0000' });  //
+                stats.push({y: series['df_8'], color: '#FF0000' });  //
+                stats.push({y: series['df_9'], color: '#FF0000' });  //
+                stats.push({y: series['df_10'], color: '#FF0000' }); //
+                stats.push(series['df_11']);
+                stats.push({y: series['df_12'], color: '#FF0000' });  //
+                stats.push({y: series['df_13'], color: '#FF0000' });  //
+                stats.push({y: series['df_14'], color: '#FF0000' });  //
+                stats.push({y: series['df_15'], color: '#FF0000' });  //
+                stats.push(series['df_16']);
+                stats.push(series['df_17']);
+                stats.push(series['df_18']);
+                stats.push({y: series['df_19'], color: '#FF0000' });  //
+                stats.push(series['df_20']);
+                stats.push(series['df_21']);
+                stats.push({y: series['df_22'], color: '#FF0000' });  //
+                stats.push({y: series['df_23'], color: '#FF0000' });  //
+                stats.push({y: series['df_24'], color: '#FF0000' });  //
+                stats.push({y: series['df_25'], color: '#FF0000' });  //
+                stats.push({y: series['df_26'], color: '#FF0000' });  //
+                stats.push({y: series['df_27'], color: '#FF0000' });  //
+                stats.push({y: series['df_28'], color: '#FF0000' });  //
+                stats.push({y: series['df_29'], color: '#FF0000' });  //
+                stats.push({y: series['df_30'], color: '#FF0000' });  //
+                stats.push({y: series['df_31'], color: '#FF0000' });  //
+
+                Plot.statistics(stats);
+
+                var i = document.getElementById('summary');
+                var html = 'Total messages: ' + series['df_total'] + ' ';
+                html += 'Unique ICAO: ' + series['no_unique_icao'] + ' ';
+                html += 'No of flights: ' + series['flights'] + '<br>';
+                i.innerHTML = html;
+            }
+
+            function updateTable() {
+                $.ajax({
+                    url: "/spots/data",
+                    method: 'GET',
+                    dataType: 'json',
+                    cache: false
+                }).done(function (series) {
+                    setTimeout(updateTable, 1000);
+                    Table(series);
+                });
+            }
+
+            function updateFlightDB() {
+                $.ajax({
+                    url: "/spots/flight_db",
+                    method: 'GET',
+                    dataType: 'json',
+                    cache: false
+                }).done(function (series) {
+                    setTimeout(updateFlightDB, 1000);
+                    FlightDB(series);
+                });
+            }
+
+            function updateStatistics() {
+                $.ajax({
+                    url: "/spots/statistics",
+                    method: 'GET',
+                    dataType: 'json',
+                    cache: false
+                }).done(function (series) {
+                    setTimeout(updateStatistics, 10000);
+                    Statistics(series);
+                });
+            }
+
+            updateTable();
+            updateFlightDB();
+            updateStatistics();
+        }
+        Spots();
+    </script>
+
+</div>
+</body>
+</html>
