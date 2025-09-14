@@ -4,3 +4,15 @@
 venv/
 __pycache__/
 *.log
+# Build artifacts
+*.egg-info/
+dist/
+build/
+MANIFEST
+
+# macOS metadata
+.AppleDouble/
+.DS_Store
+
+# Tox
+.tox/
