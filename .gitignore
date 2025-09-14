@@ -17,3 +17,4 @@ MANIFEST
 # Tox
 .tox/
 spots.egg-info/
+rtl-sdr/
