@@ -16,3 +16,4 @@ MANIFEST
 
 # Tox
 .tox/
+spots.egg-info/
