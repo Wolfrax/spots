@@ -1,3 +1,4 @@
+rtl-sdr/
 *.pyc
 .idea/
 .venv/
@@ -9,12 +10,10 @@ __pycache__/
 dist/
 build/
 MANIFEST
-
 # macOS metadata
 .AppleDouble/
 .DS_Store
-
 # Tox
 .tox/
 spots.egg-info/
-rtl-sdr/
+
