@@ -16,4 +16,10 @@ MANIFEST
 # Tox
 .tox/
 spots.egg-info/
+# Runtime logs and errors
+*.err
+*.log
+*.log.*
+*.json
+
 
